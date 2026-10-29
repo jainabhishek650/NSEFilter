@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NSE Sector Screener</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #eef1f5;
+    --panel: #ffffff;
+    --panel-2: #f5f7fa;
+    --line: #dde2ea;
+    --text: #18202c;
+    --muted: #5d6878;
+    --up: #13894f;
+    --up-soft: rgba(19,137,79,.14);
+    --down: #c8323c;
+    --down-soft: rgba(200,50,60,.13);
+    --select: #2f5bd3;
+    color-scheme: light;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d1320;
+      --panel: #141c2b;
+      --panel-2: #1a2436;
+      --line: #263248;
+      --text: #e6ebf3;
+      --muted: #8a97ab;
+      --up: #2ec27e;
+      --up-soft: rgba(46,194,126,.16);
+      --down: #ff5c66;
+      --down-soft: rgba(255,92,102,.15);
+      --select: #7aa2ff;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1320; --panel: #141c2b; --panel-2: #1a2436; --line: #263248;
+    --text: #e6ebf3; --muted: #8a97ab; --up: #2ec27e; --up-soft: rgba(46,194,126,.16);
+    --down: #ff5c66; --down-soft: rgba(255,92,102,.15); --select: #7aa2ff; color-scheme: dark;
+  }
+  *, *::before, *::after { box-sizing: inherit; }
+  [hidden] { display: none !important; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 15px;
+    line-height: 1.45;
+    font-variant-numeric: tabular-nums;
+  }
+  .app { display: flex; min-height: 100%; }
+  .side {
+    flex: none; width: 216px; position: sticky; top: env(safe-area-inset-top, 0px); align-self: flex-start;
+    height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    background: var(--panel); border-right: 1px solid var(--line);
+    padding: 18px 12px; display: flex; flex-direction: column; gap: 18px;
+  }
+  .brand { font-weight: 700; font-size: 1.05rem; padding: 0 10px; letter-spacing: -.01em; }
+  .brand small { display: block; font-weight: 400; font-size: .78rem; color: var(--muted); }
+  .nav { display: flex; flex-direction: column; gap: 4px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px;
+    color: var(--muted); text-decoration: none; font-weight: 500; position: relative;
+  }
+  .nav-item svg { width: 18px; height: 18px; flex: none; }
+  .nav-item:hover { background: var(--panel-2); color: var(--text); }
+  .nav-item:focus-visible { outline: 2px solid var(--select); outline-offset: 1px; }
+  .nav-item[aria-current="page"] { background: var(--panel-2); color: var(--text); }
+  .nav-item[aria-current="page"]::before {
+    content: ""; position: absolute; left: -12px; top: 8px; bottom: 8px; width: 3px; border-radius: 0 3px 3px 0; background: var(--select);
+  }
+  .nav-count { margin-left: auto; font-size: .75rem; font-weight: 600; display: flex; gap: 6px; }
+  .wrap { flex: 1; min-width: 0; max-width: 1280px; margin: 0 auto; padding: 20px 16px 40px; }
+  .scope { color: var(--muted); font-size: .85rem; padding: 0 16px 12px; margin: -6px 0 0; }
+  .scope a { color: var(--select); }
+  @media (max-width: 760px) {
+    .app { flex-direction: column; }
+    .side {
+      width: auto; height: auto; flex-direction: row; align-items: center; gap: 12px;
+      padding: 8px 12px; border-right: 0; border-bottom: 1px solid var(--line); z-index: 15; align-self: stretch;
+    }
+    body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 16; background: var(--panel); }
+    .brand { padding: 0; font-size: .95rem; }
+    .brand small { display: none; }
+    .nav { flex-direction: row; overflow-x: auto; }
+    .nav-item { padding: 7px 10px; white-space: nowrap; }
+    .nav-item[aria-current="page"]::before { left: 10px; right: 10px; top: auto; bottom: 0; width: auto; height: 2px; border-radius: 2px; }
+    .nav-count { display: none; }
+  }
+
+  header.top {
+    display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
+    gap: 8px 24px; margin-bottom: 16px;
+  }
+  header.top h1 { font-size: 1.5rem; font-weight: 700; margin: 0; letter-spacing: -.01em; }
+  .meta { color: var(--muted); font-size: .9rem; }
+  .breadth { display: flex; gap: 16px; font-weight: 600; }
+  .breadth .up { color: var(--up); }
+  .breadth .down { color: var(--down); }
+
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+
+  /* Chart */
+  .chart-panel { padding: 14px 0 6px; }
+  .chart-head { display: flex; justify-content: space-between; align-items: baseline; padding: 0 16px 6px; gap: 12px; flex-wrap: wrap; }
+  .chart-head h2, .stocks-head h2 { font-size: 1.05rem; margin: 0; font-weight: 600; }
+  .hint { color: var(--muted); font-size: .85rem; }
+  .filters { padding: 4px 16px 12px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+  .filter-actions { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; font-size: .85rem; color: var(--muted); }
+  .filter-actions button {
+    font: inherit; font-size: .82rem; color: var(--text); background: var(--panel-2);
+    border: 1px solid var(--line); border-radius: 6px; padding: 3px 10px; cursor: pointer;
+  }
+  .filter-actions button:focus-visible { outline: 2px solid var(--select); outline-offset: 2px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;
+    font-size: .82rem; padding: 4px 10px 4px 8px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--panel-2);
+  }
+  .chip input { margin: 0; accent-color: var(--select); cursor: pointer; }
+  .chip:has(input:not(:checked)) { opacity: .55; }
+  .chip .pc { font-weight: 600; }
+  .chart-empty { padding: 40px 16px; color: var(--muted); text-align: center; }
+  .chart-scroll { overflow-x: auto; padding: 0 8px; }
+  svg.chart { display: block; }
+  .bar-group { cursor: pointer; outline: none; }
+  .bar-group .hit { fill: transparent; }
+  .bar-group:hover .hit, .bar-group:focus-visible .hit { fill: var(--panel-2); }
+  .bar-group.selected .hit { fill: var(--panel-2); }
+  .bar-group.selected .bar { stroke: var(--select); stroke-width: 2; }
+  .bar-group:focus-visible .bar { stroke: var(--select); stroke-width: 2; }
+  .bar.up { fill: var(--up); }
+  .bar.down { fill: var(--down); }
+  .val { font-size: 11px; font-weight: 600; text-anchor: middle; }
+  .val.up { fill: var(--up); }
+  .val.down { fill: var(--down); }
+  .lbl { font-size: 11px; fill: var(--muted); }
+  .bar-group.selected .lbl { fill: var(--text); font-weight: 600; }
+  .zero { stroke: var(--line); stroke-width: 1.5; }
+  .grid { stroke: var(--line); stroke-dasharray: 2 4; }
+  .gridlbl { font-size: 10px; fill: var(--muted); text-anchor: end; }
+
+  .tip {
+    position: fixed; pointer-events: none; z-index: 20; display: none;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    padding: 10px 12px; font-size: .82rem; min-width: 190px;
+    box-shadow: 0 6px 24px rgba(0,0,0,.25);
+  }
+  .tip b { display: block; margin-bottom: 4px; font-size: .9rem; }
+  .tip .row { display: flex; justify-content: space-between; gap: 16px; color: var(--muted); }
+  .tip .row span:last-child { color: var(--text); }
+
+  /* Sector summary */
+  .sector-strip {
+    margin-top: 16px; padding: 14px 16px; display: grid;
+    grid-template-columns: minmax(180px, 1.2fr) repeat(3, minmax(110px, 1fr)) minmax(200px, 1.6fr);
+    gap: 12px 20px; align-items: center;
+  }
+  .sector-strip .name { font-size: 1.15rem; font-weight: 700; }
+  .sector-strip .sub { color: var(--muted); font-size: .82rem; }
+  .stat .k { color: var(--muted); font-size: .8rem; }
+  .stat .v { font-weight: 600; font-size: 1.02rem; }
+  .up-t { color: var(--up); }
+  .down-t { color: var(--down); }
+  .range .k { color: var(--muted); font-size: .8rem; display: flex; justify-content: space-between; }
+  .range-track { position: relative; height: 6px; border-radius: 3px; background: var(--panel-2); margin: 8px 0 4px; border: 1px solid var(--line); }
+  .range-dot { position: absolute; top: 50%; width: 12px; height: 12px; border-radius: 50%; transform: translate(-50%, -50%); border: 2px solid var(--panel); }
+  .range-ends { display: flex; justify-content: space-between; font-size: .78rem; color: var(--muted); }
+
+  /* Stocks table */
+  .stocks { margin-top: 16px; }
+  .stocks-head { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 16px 10px; gap: 12px; flex-wrap: wrap; }
+  .badge { font-size: .75rem; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+  .badge:empty { display: none; }
+  .badge.mock { border-color: var(--down); color: var(--down); }
+  .table-scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; min-width: 900px; }
+  th, td { padding: 9px 14px; text-align: right; white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  thead th {
+    font-size: .8rem; font-weight: 600; color: var(--muted);
+    border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+    background: var(--panel-2); position: sticky; top: 0;
+  }
+  thead th button {
+    all: unset; cursor: pointer; display: inline-flex; gap: 4px; align-items: center;
+  }
+  thead th button:focus-visible { outline: 2px solid var(--select); outline-offset: 2px; border-radius: 3px; }
+  thead th.active button { color: var(--text); }
+  .arrow { font-size: .7rem; width: .7em; display: inline-block; }
+  tbody tr { border-bottom: 1px solid var(--line); }
+  tbody tr:last-child { border-bottom: 0; }
+  tbody tr:hover { background: var(--panel-2); }
+  td.sym { font-weight: 600; }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 6px; font-weight: 600; }
+  .pill.up { background: var(--up-soft); color: var(--up); }
+  .pill.down { background: var(--down-soft); color: var(--down); }
+  .vw { font-size: .72rem; margin-left: 6px; }
+  .empty { padding: 28px 16px; color: var(--muted); }
+
+  /* Breakouts */
+  .breakouts { margin-top: 16px; }
+  .bo-head { display: flex; justify-content: space-between; align-items: center; gap: 10px 16px; flex-wrap: wrap; padding: 14px 16px 6px; }
+  .bo-head h2 { font-size: 1.05rem; margin: 0; font-weight: 600; }
+  .bo-sub { color: var(--muted); font-size: .85rem; padding: 0 16px 12px; }
+  .bo-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: .85rem; }
+  .bo-controls button, .bo-controls select {
+    font: inherit; font-size: .82rem; color: var(--text); background: var(--panel-2);
+    border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; cursor: pointer;
+  }
+  .bo-controls button:focus-visible, .bo-controls select:focus-visible { outline: 2px solid var(--select); outline-offset: 2px; }
+  .clock { font-weight: 600; min-width: 4.5em; }
+  .bo-grid { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid var(--line); }
+  .bo-col + .bo-col { border-left: 1px solid var(--line); }
+  .bo-col h3 { font-size: .95rem; margin: 0; padding: 12px 14px 8px; display: flex; justify-content: space-between; align-items: baseline; }
+  .bo-col h3 .n { font-size: .8rem; color: var(--muted); font-weight: 500; }
+  .bo-col table { min-width: 560px; }
+  .bo-col .sec { color: var(--muted); font-size: .82rem; }
+  .bo-col td.big { font-weight: 700; font-size: 1.05rem; }
+  .bo-col tr.cooling td { opacity: .5; }
+  .status { font-size: .78rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+  .status.up { color: var(--up); border-color: var(--up); }
+  .status.down { color: var(--down); border-color: var(--down); }
+  .timeline { padding: 4px 16px 10px; }
+  .tl-nowrow { position: relative; height: 24px; }
+  .tl-now {
+    position: absolute; top: 0; transform: translateX(-50%); font-size: .8rem; font-weight: 700;
+    background: var(--select); color: var(--panel); padding: 2px 8px; border-radius: 6px; white-space: nowrap;
+  }
+  .tl-pad { padding: 0 7px; }
+  .tl-bars { display: block; width: 100%; height: 64px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; overflow: visible; }
+  .tl-up { fill: var(--up); }
+  .tl-down { fill: var(--down); }
+  .tl-mid { stroke: var(--line); stroke-width: .6; vector-effect: non-scaling-stroke; }
+  .tl-gap { fill: var(--line); opacity: .45; }
+  .tl-cursor { fill: var(--select); opacity: .22; }
+  .tl-labels { position: relative; height: 18px; font-size: .75rem; color: var(--muted); }
+  .tl-labels span { position: absolute; transform: translateX(-50%); }
+  .tl-labels span:first-child { transform: none; }
+  .tl-legend { display: flex; gap: 16px; font-size: .78rem; margin-top: 4px; }
+  #rpSlider { width: 100%; margin: 6px 0 2px; height: 22px; background: transparent; cursor: pointer; -webkit-appearance: none; appearance: none; }
+  #rpSlider:focus-visible { outline: 2px solid var(--select); outline-offset: 2px; border-radius: 4px; }
+  #rpSlider::-webkit-slider-runnable-track { height: 6px; background: var(--line); border-radius: 3px; }
+  #rpSlider::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 22px; margin-top: -8px; border-radius: 4px; background: var(--select); border: 2px solid var(--panel); }
+  #rpSlider::-moz-range-track { height: 6px; background: var(--line); border-radius: 3px; }
+  #rpSlider::-moz-range-thumb { width: 10px; height: 18px; border-radius: 4px; background: var(--select); border: 2px solid var(--panel); }
+
+  @media (max-width: 1000px) {
+    .bo-grid { grid-template-columns: 1fr; }
+    .bo-col + .bo-col { border-left: 0; border-top: 1px solid var(--line); }
+  }
+
+  @media (max-width: 760px) {
+    .sector-strip { grid-template-columns: 1fr 1fr; }
+    .sector-strip .ident, .sector-strip .range { grid-column: 1 / -1; }
+    header.top h1 { font-size: 1.25rem; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+<nav class="side" aria-label="Main">
+  <div class="brand">NSE Screener<small>Sector and stock scan</small></div>
+  <div class="nav">
+    <a class="nav-item" href="#sectors" data-view="sectors">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>
+      Sectors
+    </a>
+    <a class="nav-item" href="#breakouts" data-view="breakouts">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 16l5-5 4 4 7-7M15 8h5v5"/></svg>
+      Breakouts
+      <span class="nav-count"><span class="up-t" id="navHigh"></span><span class="down-t" id="navLow"></span></span>
+    </a>
+    <a class="nav-item" href="#replay" data-view="replay">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3 2"/></svg>
+      Replay
+    </a>
+  </div>
+</nav>
+<main class="wrap">
+  <header class="top">
+    <div>
+      <h1 id="pageTitle">Sector overview</h1>
+      <div class="meta" id="stamp"></div>
+    </div>
+    <div class="breadth" id="breadth"></div>
+  </header>
+
+  <div class="view" id="view-sectors">
+
+  <section class="panel chart-panel" aria-label="Sector performance">
+    <div class="chart-head">
+      <h2>Sectors by % change</h2>
+      <span class="hint">Click a sector to see its stocks</span>
+    </div>
+    <div class="filters" role="group" aria-label="Choose sectors to show">
+      <div class="filter-actions">
+        <span id="filterCount"></span>
+        <button type="button" id="selAll">Select all</button>
+        <button type="button" id="selNone">Clear all</button>
+      </div>
+      <div class="chips" id="chips"></div>
+    </div>
+    <div class="chart-scroll"><svg class="chart" id="chart" role="group" aria-label="Sector bar chart"></svg></div>
+    <div class="chart-empty" id="chartEmpty" hidden>No sectors selected. Tick at least one sector above.</div>
+  </section>
+
+  <section class="panel sector-strip" id="strip" aria-live="polite"></section>
+
+  <section class="panel stocks">
+    <div class="stocks-head">
+      <h2 id="stocksTitle">Stocks</h2>
+      <span class="badge" id="dataBadge"></span>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr id="thead"></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  </div>
+
+  <div class="view" id="view-breakouts" hidden>
+  <section class="panel breakouts" aria-label="Stocks breaking highs and lows">
+    <div class="bo-head">
+      <h2>Continuously breaking highs and lows</h2>
+      <div class="bo-controls">
+        <span class="badge mock" id="boBadge">Simulated replay</span>
+        <span class="clock" id="boClock"></span>
+        <span class="bo-controls" id="simCtrls">
+        <button type="button" id="boPlay">Pause</button>
+        <button type="button" id="boStep">Step 1 min</button>
+        <button type="button" id="boReset">Restart day</button>
+        <label>Speed
+          <select id="boSpeed">
+            <option value="2000">1 min every 2 s</option>
+            <option value="1000" selected>1 min every 1 s</option>
+            <option value="300">Fast</option>
+          </select>
+        </label>
+        </span>
+      </div>
+    </div>
+    <div class="bo-sub" id="boSub"></div>
+    <p class="scope" id="boScope"></p>
+    <div class="bo-grid">
+      <div class="bo-col">
+        <h3><span class="up-t">Making new highs</span><span class="n" id="boHighN"></span></h3>
+        <div class="table-scroll"><table>
+          <thead><tr><th>Symbol</th><th>High breaks today</th><th>Streak</th><th>Last break</th><th>Status</th><th>LTP</th><th>% change</th></tr></thead>
+          <tbody id="boHigh"></tbody>
+        </table></div>
+      </div>
+      <div class="bo-col">
+        <h3><span class="down-t">Making new lows</span><span class="n" id="boLowN"></span></h3>
+        <div class="table-scroll"><table>
+          <thead><tr><th>Symbol</th><th>Low breaks today</th><th>Streak</th><th>Last break</th><th>Status</th><th>LTP</th><th>% change</th></tr></thead>
+          <tbody id="boLow"></tbody>
+        </table></div>
+      </div>
+    </div>
+  </section>
+  </div>
+
+  <div class="view" id="view-replay" hidden>
+  <section class="panel breakouts" aria-label="Breakout replay">
+    <div class="bo-head">
+      <h2>Breakout replay</h2>
+      <div class="bo-controls">
+        <label>Day <select id="rpDay"></select></label>
+        <button type="button" id="rpPlay">Play</button>
+        <label>Speed
+          <select id="rpSpeed">
+            <option value="1000">1 candle / s</option>
+            <option value="500" selected>2 candles / s</option>
+            <option value="200">Fast</option>
+          </select>
+        </label>
+      </div>
+    </div>
+    <div class="bo-sub" id="rpSub"></div>
+    <div class="timeline">
+      <div class="tl-nowrow"><span class="tl-now" id="rpNow"></span></div>
+      <div class="tl-pad"><svg id="rpBars" class="tl-bars" viewBox="-0.5 0 75 60" preserveAspectRatio="none" aria-hidden="true"></svg></div>
+      <input type="range" id="rpSlider" min="0" max="74" step="1" value="0" aria-label="Replay time (5-minute steps)">
+      <div class="tl-pad"><div class="tl-labels" id="rpLabels"></div></div>
+      <div class="tl-legend"><span class="up-t">▮ stocks breaking day highs</span><span class="down-t">▮ stocks breaking day lows</span></div>
+    </div>
+    <p class="scope" id="rpScope"></p>
+    <div class="bo-grid">
+      <div class="bo-col">
+        <h3><span class="up-t">Making new highs</span><span class="n" id="rpHighN"></span></h3>
+        <div class="table-scroll"><table>
+          <thead><tr><th>Symbol</th><th>High breaks today</th><th>Streak</th><th>Last break</th><th>Status</th><th>LTP</th><th>% change</th></tr></thead>
+          <tbody id="rpHigh"></tbody>
+        </table></div>
+      </div>
+      <div class="bo-col">
+        <h3><span class="down-t">Making new lows</span><span class="n" id="rpLowN"></span></h3>
+        <div class="table-scroll"><table>
+          <thead><tr><th>Symbol</th><th>Low breaks today</th><th>Streak</th><th>Last break</th><th>Status</th><th>LTP</th><th>% change</th></tr></thead>
+          <tbody id="rpLow"></tbody>
+        </table></div>
+      </div>
+    </div>
+  </section>
+  </div>
+</main>
+</div>
+<div class="tip" id="tip"></div>
+
+<script>
+/* =========================================================
+   DATA LAYER — replace these with live fetches later.
+   Keep the same shape as the NSE response.
+   ========================================================= */
+// Sectors to show. Empty list = show every sector.
+const KEEP_SECTORS = [
+  "NIFTY AUTO", "NIFTY PHARMA", "NIFTY BANK", "NIFTY PSU BANK", "NIFTY METAL",
+  "NIFTY CEMENT", "NIFTY FMCG", "NIFTY REALTY", "NIFTY IT", "NIFTY OIL AND GAS",
+  "NIFTY 50"
+];
+const keepSector = sec => !KEEP_SECTORS.length || KEEP_SECTORS.includes(sec.index);
+
+const EXT = window.NSE_DATA || null; // set by nse-data.js if present
+const SECTOR_DATA = (EXT && EXT.sectors && EXT.sectors.length) ? EXT.sectors : [
+  {"close":25340.8,"current":25707.35,"high":25754.5,"index":"NIFTY AUTO","indexLongName":"Nifty Auto","low":25268.65,"open":25406.1,"pChange":1.45,"timeStamp":"28-Oct-2026 15:40:31","yrHigh":29865.5,"yrLow":23560.1},
+  {"close":53974.9,"current":54267.4,"high":54440.25,"index":"NIFTY BANK","indexLongName":"Nifty Bank","low":53626.15,"open":53793.25,"pChange":0.54,"timeStamp":"28-Oct-2026 15:40:31","yrHigh":61764.85,"yrLow":49954.85},
+  {"close":24303.75,"current":24418.25,"high":24473.95,"index":"NIFTY FIN SERVICE","indexLongName":"Nifty Financial Services","low":24121.65,"open":24220.8,"pChange":0.47,"timeStamp":"28-Oct-2026 15:40:31","yrHigh":28562.5,"yrLow":23373.95},
+  {"close":26088,"current":26206.15,"high":26257.3,"index":"NIFTY FINSRV25 50","indexLongName":"Nifty Financial Services 25/50","low":25868.3,"open":26007.1,"pChange":0.45,"timeStamp":"28-Oct-2026 15:40:31","yrHigh":0,"yrLow":0},
+  {"close":43118.2,"current":42878.35,"high":42898.8,"index":"NIFTY FMCG","indexLongName":"Nifty FMCG","low":42240.45,"open":42877.55,"pChange":-0.56,"timeStamp":"28-Oct-2026 15:40:31","yrHigh":56756.15,"yrLow":42006},
+  {"close":32189.45,"current":31553.4,"high":31597.95,"index":"NIFTY IT","indexLongName":"Nifty IT","low":30928.1,"open":31438.9,"pChange":-1.98,"timeStamp":"28-Oct-2026 15:40:31","yrHigh":40301.4,"yrLow":25699.1},
+  {"close":1615.05,"current":1637.4,"high":1652.15,"index":"NIFTY MEDIA","indexLongName":"Nifty Media","low":1595.25,"open":1616.1,"pChange":1.38,"timeStamp":"28-Oct-2026 15:40:31","yrHigh":1654.75,"yrLow":1245.05},
+  {"close":11806.7,"current":11769.35,"high":11863.65,"index":"NIFTY METAL","indexLongName":"Nifty Metal","low":11716,"open":11809.75,"pChange":-0.32,"timeStamp":"28-Oct-2026 15:40:31","yrHigh":13931.35,"yrLow":9968.4},
+  {"close":26267.25,"current":26541.35,"high":26585.85,"index":"NIFTY PHARMA","indexLongName":"Nifty Pharma","low":26067.1,"open":26226.9,"pChange":1.04,"timeStamp":"28-Oct-2026 15:40:31","yrHigh":27255.05,"yrLow":21149.9},
+  {"close":8126.7,"current":8133.6,"high":8159.55,"index":"NIFTY PSU BANK","indexLongName":"Nifty PSU Bank","low":8047.05,"open":8083.85,"pChange":0.08,"timeStamp":"28-Oct-2026 15:40:31","yrHigh":9918.65,"yrLow":7809.15},
+  {"close":805.05,"current":797.85,"high":805.15,"index":"NIFTY REALTY","indexLongName":"Nifty Realty","low":797.3,"open":802.3,"pChange":-0.89,"timeStamp":"28-Oct-2026 15:40:31","yrHigh":974.5,"yrLow":638.65},
+  {"close":26628.45,"current":26722.1,"high":26809.95,"index":"NIFTY PVT BANK","indexLongName":"Nifty Private Bank","low":26424.75,"open":26545.1,"pChange":0.35,"timeStamp":"28-Oct-2026 15:40:31","yrHigh":29748.45,"yrLow":23957.45},
+  {"close":15917.6,"current":16100.1,"high":16126.75,"index":"NIFTY HEALTHCARE","indexLongName":"Nifty Healthcare Index","low":15781.15,"open":15872.6,"pChange":1.15,"timeStamp":"28-Oct-2026 15:40:31","yrHigh":16941.7,"yrLow":13536.5},
+  {"close":34254.8,"current":34738.6,"high":34981.7,"index":"NIFTY CONSR DURBL","indexLongName":"Nifty Consumer Durables","low":33907.7,"open":34168.2,"pChange":1.41,"timeStamp":"28-Oct-2026 15:40:31","yrHigh":40964.55,"yrLow":32587.95},
+  {"close":10536,"current":10296.6,"high":10481.25,"index":"NIFTY OIL AND GAS","indexLongName":"Nifty Oil & Gas","low":10282.1,"open":10480.95,"pChange":-2.27,"timeStamp":"28-Oct-2026 15:40:31","yrHigh":12445.7,"yrLow":10203.7},
+  {"close":50077.9,"current":50891.1,"high":50925.5,"index":"NIFTY MIDSML HLTH","indexLongName":"Nifty MidSmall Healthcare","low":49953.4,"open":50138.65,"pChange":1.62,"timeStamp":"28-Oct-2026 15:40:31","yrHigh":53415.1,"yrLow":40352.9},
+  {"close":26827.45,"current":26771.15,"high":26955.9,"index":"NIFTY CHEMICALS","indexLongName":"Nifty Chemicals","low":26648,"open":26756.65,"pChange":-0.21,"timeStamp":"28-Oct-2026 15:40:31","yrHigh":31895.45,"yrLow":24851.65},
+  {"close":20751.7,"current":21017.65,"high":21049.85,"index":"NIFTY500 HEALTH","indexLongName":"Nifty500 Healthcare","low":20612.35,"open":20715.1,"pChange":1.28,"timeStamp":"28-Oct-2026 15:40:31","yrHigh":22125.15,"yrLow":16294.6},
+  {"close":28255.25,"current":28428.35,"high":28469.2,"index":"NIFTY FINSEREXBNK","indexLongName":"Nifty Financial Services Ex-Bank","low":28044.9,"open":28194,"pChange":0.61,"timeStamp":"28-Oct-2026 15:40:31","yrHigh":33301.05,"yrLow":26788.05},
+  {"close":19923.85,"current":20108.65,"high":20133.25,"index":"NIFTY MS FIN SERV","indexLongName":"Nifty Midsmall Financial Services","low":19843.55,"open":19920.45,"pChange":0.93,"timeStamp":"28-Oct-2026 15:40:31","yrHigh":23193.65,"yrLow":18013.2},
+  {"close":10196.95,"current":10073.95,"high":10137.45,"index":"NIFTY MS IT TELCM","indexLongName":"Nifty Midsmall IT & Telecom","low":9949.15,"open":10046.85,"pChange":-1.21,"timeStamp":"28-Oct-2026 15:40:31","yrHigh":10591.6,"yrLow":7748.35},
+  {"close":13426.65,"current":13383.5,"high":13457.75,"index":"NIFTY CEMENT","indexLongName":"Nifty Cement","low":13325.5,"open":13376.95,"pChange":-0.32,"timeStamp":"28-Oct-2026 15:40:31","yrHigh":18188.6,"yrLow":13152.3},
+  {"close":1796.35,"current":1782.45,"high":1794.45,"index":"NIFTY REITS REALTY","indexLongName":"Nifty REITs & Realty","low":1779.55,"open":1792.7,"pChange":-0.77,"timeStamp":"28-Oct-2026 15:40:31","yrHigh":2012.9,"yrLow":1632.55}
+];
+
+SECTOR_DATA.splice(0, SECTOR_DATA.length, ...SECTOR_DATA.filter(keepSector));
+// numbers may arrive as strings — normalise
+SECTOR_DATA.forEach(s => ["close","current","high","low","open","pChange","yrHigh","yrLow"]
+  .forEach(k => { s[k] = parseFloat(s[k]) || 0; }));
+
+/* Real stock data: Nifty IT and Nifty FMCG embedded; nse-data.js (if present) adds/overrides all sectors.
+   Sectors with no real data fall back to mock stocks. */
+const STOCK_DATA = Object.assign({
+  "NIFTY IT": [
+    {"VWAP":"4048.79","change":"44.3","high":"4109.9","lastPrice":"4104","lastUpdatedTime":"28-Oct-2026 16:00:26","low":"3926","marketType":"N","pChange":"1.09","quantityTraded":"1858888562.38","series":"EQ","symbol":"LTM","totalTradedVolume":"459122"},
+    {"VWAP":"9928.38","change":"58","high":"10042","lastPrice":"9986","lastUpdatedTime":"28-Oct-2026 16:00:26","low":"9732","marketType":"N","pChange":"0.58","quantityTraded":"3213608110.02","series":"EQ","symbol":"OFSS","totalTradedVolume":"323679"},
+    {"VWAP":"5784.97","change":"15.5","high":"5872.5","lastPrice":"5848","lastUpdatedTime":"28-Oct-2026 16:00:26","low":"5650","marketType":"N","pChange":"0.27","quantityTraded":"2140936407.42","series":"EQ","symbol":"PERSISTENT","totalTradedVolume":"370086"},
+    {"VWAP":"184.64","change":"-2.5","high":"186.15","lastPrice":"184.5","lastUpdatedTime":"28-Oct-2026 16:00:26","low":"182.25","marketType":"N","pChange":"-1.34","quantityTraded":"3547500875.52","series":"EQ","symbol":"WIPRO","totalTradedVolume":"19213068"},
+    {"VWAP":"1386.31","change":"-19.5","high":"1401.4","lastPrice":"1400.5","lastUpdatedTime":"28-Oct-2026 16:00:26","low":"1364","marketType":"N","pChange":"-1.37","quantityTraded":"2595890428.58","series":"EQ","symbol":"HCLTECH","totalTradedVolume":"1872518"},
+    {"VWAP":"2435.96","change":"-36.9","high":"2461.3","lastPrice":"2460","lastUpdatedTime":"28-Oct-2026 16:00:26","low":"2408.2","marketType":"N","pChange":"-1.48","quantityTraded":"6187452890.12","series":"EQ","symbol":"TCS","totalTradedVolume":"2540047"},
+    {"VWAP":"1943.35","change":"-35.1","high":"1977.8","lastPrice":"1961.9","lastUpdatedTime":"28-Oct-2026 16:00:26","low":"1903.8","marketType":"N","pChange":"-1.76","quantityTraded":"4275391376.85","series":"EQ","symbol":"COFORGE","totalTradedVolume":"2200011"},
+    {"VWAP":"1772.55","change":"-34.8","high":"1794.5","lastPrice":"1776.6","lastUpdatedTime":"28-Oct-2026 16:00:26","low":"1733.2","marketType":"N","pChange":"-1.92","quantityTraded":"4969941274.35","series":"EQ","symbol":"TECHM","totalTradedVolume":"2803837"},
+    {"VWAP":"1113.41","change":"-39.85","high":"1133.8","lastPrice":"1123.15","lastUpdatedTime":"28-Oct-2026 16:00:26","low":"1103.4","marketType":"N","pChange":"-3.43","quantityTraded":"17409778681.09","series":"EQ","symbol":"INFY","totalTradedVolume":"15636449"},
+    {"VWAP":"2499.47","change":"-100.4","high":"2563.9","lastPrice":"2518","lastUpdatedTime":"28-Oct-2026 16:00:26","low":"2455.2","marketType":"N","pChange":"-3.83","quantityTraded":"1216604525.15","series":"EQ","symbol":"MPHASIS","totalTradedVolume":"486745"}
+  ],
+  "NIFTY FMCG": [
+    {"VWAP":"1258.28","change":"32.4","high":"1278","lastPrice":"1259.8","lastUpdatedTime":"29-Oct-2026 10:44:18","low":"1228.2","marketType":"N","pChange":"2.64","quantityTraded":"766516493.84","series":"EQ","symbol":"UNITDSPR","totalTradedVolume":"609178"},
+    {"VWAP":"1837.72","change":"47.6","high":"1864.4","lastPrice":"1863.4","lastUpdatedTime":"29-Oct-2026 10:44:15","low":"1804","marketType":"N","pChange":"2.62","quantityTraded":"1181946157.48","series":"EQ","symbol":"HINDUNILVR","totalTradedVolume":"643159"},
+    {"VWAP":"4625.07","change":"97.9","high":"4674","lastPrice":"4665.2","lastUpdatedTime":"29-Oct-2026 10:44:13","low":"4558.2","marketType":"N","pChange":"2.14","quantityTraded":"167348907.81","series":"EQ","symbol":"BRITANNIA","totalTradedVolume":"36183"},
+    {"VWAP":"363.65","change":"7.7","high":"368.9","lastPrice":"367.7","lastUpdatedTime":"29-Oct-2026 10:44:16","low":"358.55","marketType":"N","pChange":"2.14","quantityTraded":"192105385.5","series":"EQ","symbol":"DABUR","totalTradedVolume":"528270"},
+    {"VWAP":"1732.51","change":"34.5","high":"1755","lastPrice":"1748.9","lastUpdatedTime":"29-Oct-2026 10:44:15","low":"1711.1","marketType":"N","pChange":"2.01","quantityTraded":"93474112.03","series":"EQ","symbol":"GODFRYPHLP","totalTradedVolume":"53953"},
+    {"VWAP":"261.7","change":"4.05","high":"264.5","lastPrice":"263.55","lastUpdatedTime":"29-Oct-2026 10:44:15","low":"257.8","marketType":"N","pChange":"1.56","quantityTraded":"1092153133.4","series":"EQ","symbol":"ITC","totalTradedVolume":"4173302"},
+    {"VWAP":"406.87","change":"4.3","high":"408.95","lastPrice":"408.8","lastUpdatedTime":"29-Oct-2026 10:44:18","low":"404.7","marketType":"N","pChange":"1.06","quantityTraded":"166699521.44","series":"EQ","symbol":"VBL","totalTradedVolume":"409712"},
+    {"VWAP":"1606.41","change":"16.7","high":"1623.5","lastPrice":"1618.3","lastUpdatedTime":"29-Oct-2026 10:44:14","low":"1588.6","marketType":"N","pChange":"1.04","quantityTraded":"203683149.54","series":"EQ","symbol":"COLPAL","totalTradedVolume":"126794"},
+    {"VWAP":"1169.68","change":"12.1","high":"1187.9","lastPrice":"1180.1","lastUpdatedTime":"29-Oct-2026 10:44:18","low":"1153","marketType":"N","pChange":"1.04","quantityTraded":"734560209.68","series":"EQ","symbol":"NESTLEIND","totalTradedVolume":"628001"},
+    {"VWAP":"1003.04","change":"10.1","high":"1014.05","lastPrice":"1010.3","lastUpdatedTime":"29-Oct-2026 10:44:12","low":"989.15","marketType":"N","pChange":"1.01","quantityTraded":"398050405.76","series":"EQ","symbol":"TATACONSUM","totalTradedVolume":"396844"},
+    {"VWAP":"821.16","change":"6.3","high":"830.45","lastPrice":"828.3","lastUpdatedTime":"29-Oct-2026 10:44:17","low":"810.1","marketType":"N","pChange":"0.77","quantityTraded":"194859625.68","series":"EQ","symbol":"GODREJCP","totalTradedVolume":"237298"},
+    {"VWAP":"771.39","change":"5.95","high":"778.9","lastPrice":"775.6","lastUpdatedTime":"29-Oct-2026 10:44:18","low":"764.7","marketType":"N","pChange":"0.77","quantityTraded":"267670015.83","series":"EQ","symbol":"MARICO","totalTradedVolume":"346997"},
+    {"VWAP":"4159.75","change":"22.9","high":"4235.1","lastPrice":"4158","lastUpdatedTime":"29-Oct-2026 10:44:18","low":"4121.7","marketType":"N","pChange":"0.55","quantityTraded":"867877760.75","series":"EQ","symbol":"RADICO","totalTradedVolume":"208637"},
+    {"VWAP":"367.71","change":"-1.55","high":"371.5","lastPrice":"368.05","lastUpdatedTime":"29-Oct-2026 10:44:12","low":"365.5","marketType":"N","pChange":"-0.42","quantityTraded":"553191381.33","series":"EQ","symbol":"PATANJALI","totalTradedVolume":"1504423"},
+    {"VWAP":"1183.21","change":"-10.4","high":"1196.1","lastPrice":"1187.2","lastUpdatedTime":"29-Oct-2026 10:44:13","low":"1163.1","marketType":"N","pChange":"-0.87","quantityTraded":"110780402.67","series":"EQ","symbol":"UBL","totalTradedVolume":"93627"}
+  ]
+}, (EXT && EXT.stocks) || {});
+
+/* ---------- MOCK constituents for sectors without real data ---------- */
+const MOCK_SYMBOLS = {
+  "NIFTY AUTO": ["MARUTI","M&M","TATAMOTORS","BAJAJ-AUTO","EICHERMOT","HEROMOTOCO","TVSMOTOR","ASHOKLEY"],
+  "NIFTY BANK": ["HDFCBANK","ICICIBANK","SBIN","KOTAKBANK","AXISBANK","INDUSINDBK","BANKBARODA","PNB"],
+  "NIFTY FIN SERVICE": ["HDFCBANK","ICICIBANK","BAJFINANCE","BAJAJFINSV","SBILIFE","HDFCLIFE","SHRIRAMFIN","CHOLAFIN"],
+  "NIFTY FINSRV25 50": ["HDFCBANK","ICICIBANK","BAJFINANCE","SBIN","KOTAKBANK","AXISBANK","BAJAJFINSV"],
+  "NIFTY FMCG": ["HINDUNILVR","ITC","NESTLEIND","BRITANNIA","TATACONSUM","DABUR","GODREJCP","MARICO"],
+  "NIFTY MEDIA": ["ZEEL","SUNTV","PVRINOX","NETWORK18","SAREGAMA","NAZARA"],
+  "NIFTY METAL": ["TATASTEEL","JSWSTEEL","HINDALCO","VEDL","JINDALSTEL","SAIL","NMDC","NATIONALUM"],
+  "NIFTY PHARMA": ["SUNPHARMA","CIPLA","DRREDDY","DIVISLAB","LUPIN","AUROPHARMA","ZYDUSLIFE","TORNTPHARM"],
+  "NIFTY PSU BANK": ["SBIN","BANKBARODA","PNB","CANBK","UNIONBANK","INDIANB","BANKINDIA"],
+  "NIFTY REALTY": ["DLF","GODREJPROP","OBEROIRLTY","PRESTIGE","PHOENIXLTD","LODHA"],
+  "NIFTY PVT BANK": ["HDFCBANK","ICICIBANK","KOTAKBANK","AXISBANK","INDUSINDBK","FEDERALBNK","IDFCFIRSTB"],
+  "NIFTY HEALTHCARE": ["SUNPHARMA","APOLLOHOSP","MAXHEALTH","CIPLA","DRREDDY","FORTIS"],
+  "NIFTY CONSR DURBL": ["TITAN","HAVELLS","VOLTAS","DIXON","BLUESTARCO","CROMPTON"],
+  "NIFTY OIL AND GAS": ["RELIANCE","ONGC","IOC","BPCL","GAIL","HINDPETRO","OIL","PETRONET"],
+  "NIFTY MIDSML HLTH": ["LUPIN","AUROPHARMA","ALKEM","GLENMARK","IPCALAB","FORTIS","LAURUSLABS"],
+  "NIFTY CHEMICALS": ["PIDILITIND","SRF","DEEPAKNTR","AARTIIND","NAVINFLUOR","TATACHEM","PIIND"],
+  "NIFTY500 HEALTH": ["SUNPHARMA","APOLLOHOSP","DIVISLAB","CIPLA","MAXHEALTH","LUPIN"],
+  "NIFTY FINSEREXBNK": ["BAJFINANCE","BAJAJFINSV","SBILIFE","HDFCLIFE","SHRIRAMFIN","CHOLAFIN","JIOFIN"],
+  "NIFTY MS FIN SERV": ["MUTHOOTFIN","MFSL","POLICYBZR","LICHSGFIN","MANAPPURAM","ABCAPITAL"],
+  "NIFTY MS IT TELCM": ["PERSISTENT","COFORGE","MPHASIS","TATAELXSI","KPITTECH","IDEA","TATACOMM"],
+  "NIFTY CEMENT": ["ULTRACEMCO","AMBUJACEM","SHREECEM","ACC","DALBHARAT","JKCEMENT"],
+  "NIFTY REITS REALTY": ["EMBASSY","MINDSPACE","BIRET","DLF","GODREJPROP","PRESTIGE"]
+};
+
+function seededRand(seed) {
+  let h = 2166136261;
+  for (const c of seed) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); }
+  return () => { h = Math.imul(h ^ (h >>> 15), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909); h ^= h >>> 16; return (h >>> 0) / 4294967296; };
+}
+function mockStocks(sector) {
+  return (MOCK_SYMBOLS[sector.index] || []).map(sym => {
+    const r = seededRand(sector.index + sym);
+    const prev = 100 + r() * 4900;
+    const pChange = sector.pChange + (r() - 0.5) * 4;
+    const last = prev * (1 + pChange / 100);
+    const high = Math.max(last, prev) * (1 + r() * 0.012);
+    const low = Math.min(last, prev) * (1 - r() * 0.012);
+    const vwap = low + (high - low) * (0.3 + r() * 0.4);
+    const vol = Math.round(200000 + r() * 12000000);
+    return {
+      VWAP: vwap.toFixed(2), change: (last - prev).toFixed(2), high: high.toFixed(2),
+      lastPrice: last.toFixed(2), low: low.toFixed(2), pChange: pChange.toFixed(2),
+      quantityTraded: (vwap * vol).toFixed(2), symbol: sym, totalTradedVolume: String(vol),
+      lastUpdatedTime: sector.timeStamp, series: "EQ", marketType: "N"
+    };
+  });
+}
+function getStocks(sector) {
+  if (STOCK_DATA[sector.index]) return { rows: STOCK_DATA[sector.index], mock: false };
+  return { rows: mockStocks(sector), mock: true };
+}
+
+/* =========================================================
+   HELPERS
+   ========================================================= */
+const num = v => typeof v === "number" ? v : parseFloat(v);
+const fmt = (v, d = 2) => num(v).toLocaleString("en-IN", { minimumFractionDigits: d, maximumFractionDigits: d });
+const sign = v => (v > 0 ? "+" : "") ;
+const shortName = s => {
+  const n = (s.indexLongName || s.index).replace(/^Nifty\s?/i, "").replace(/ Index$/, "");
+  return !n || /^\d/.test(n) ? (s.indexLongName || s.index) : n;   // keep "Nifty 50" whole
+};
+const rangePos = (cur, lo, hi) => hi > lo ? (cur - lo) / (hi - lo) : 0.5;
+const crores = v => (num(v) / 1e7).toLocaleString("en-IN", { maximumFractionDigits: 0 });
+const compact = v => {
+  const n = num(v);
+  if (n >= 1e7) return (n / 1e7).toFixed(2) + " Cr";
+  if (n >= 1e5) return (n / 1e5).toFixed(2) + " L";
+  return n.toLocaleString("en-IN");
+};
+
+/* =========================================================
+   STATE
+   ========================================================= */
+const sectors = [...SECTOR_DATA].sort((a, b) => b.pChange - a.pChange);
+let selected = sectors[0].index;
+let sortKey = "pChange";
+let sortDir = -1;
+const visible = new Set(sectors.map(s => s.index));
+const shown = () => sectors.filter(s => visible.has(s.index));
+
+/* =========================================================
+   SECTOR FILTER (ticks)
+   ========================================================= */
+function renderFilters() {
+  document.getElementById("chips").innerHTML = sectors.map(s => `
+    <label class="chip">
+      <input type="checkbox" value="${s.index}" ${visible.has(s.index) ? "checked" : ""}>
+      ${shortName(s)} <span class="pc ${s.pChange >= 0 ? "up-t" : "down-t"}">${sign(s.pChange)}${s.pChange.toFixed(2)}%</span>
+    </label>`).join("");
+  document.querySelectorAll("#chips input").forEach(cb => cb.addEventListener("change", () => {
+    cb.checked ? visible.add(cb.value) : visible.delete(cb.value);
+    applyFilter();
+  }));
+  updateFilterCount();
+}
+function updateFilterCount() {
+  document.getElementById("filterCount").textContent = `${visible.size} of ${sectors.length} shown`;
+}
+function setAll(on) {
+  sectors.forEach(s => on ? visible.add(s.index) : visible.delete(s.index));
+  document.querySelectorAll("#chips input").forEach(cb => cb.checked = on);
+  applyFilter();
+}
+function applyFilter() {
+  updateFilterCount();
+  renderHeader();
+  renderChart();
+  renderBreakouts();
+  if (R.data) renderReplay();
+  const list = shown();
+  if (!list.length) { selected = null; renderStrip(); renderTable(); return; }
+  if (!visible.has(selected)) selected = list[0].index;
+  selectSector(selected);
+}
+document.getElementById("selAll").addEventListener("click", () => setAll(true));
+document.getElementById("selNone").addEventListener("click", () => setAll(false));
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+function renderHeader() {
+  document.getElementById("stamp").textContent = "As of " + SECTOR_DATA[0].timeStamp +
+    (LIVE.on ? " · Live, refreshes every minute" : EXT ? " · Data from nse-data.js" : " · Embedded sample data");
+  const up = shown().filter(s => s.pChange > 0).length;
+  const down = shown().filter(s => s.pChange < 0).length;
+  document.getElementById("breadth").innerHTML =
+    `<span class="up">${up} sectors up</span><span class="down">${down} down</span>`;
+}
+
+/* =========================================================
+   CHART
+   ========================================================= */
+const tip = document.getElementById("tip");
+function renderChart() {
+  const svg = document.getElementById("chart");
+  const list = shown();
+  const empty = !list.length;
+  document.getElementById("chartEmpty").hidden = !empty;
+  svg.style.display = empty ? "none" : "block";
+  if (empty) { svg.innerHTML = ""; return; }
+  const slot = 54, padL = 44, padR = 12, top = 22, plotH = 230, labelH = 110;
+  const W = padL + padR + list.length * slot;
+  const H = top + plotH + labelH;
+  const maxAbs = Math.max(...list.map(s => Math.abs(s.pChange)));
+  const lim = Math.ceil(maxAbs * 2) / 2 || 1;
+  const y = v => top + plotH / 2 - (v / lim) * (plotH / 2);
+  const zeroY = y(0);
+
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.setAttribute("width", W);
+  svg.setAttribute("height", H);
+
+  let html = "";
+  for (let g = -lim; g <= lim + 1e-9; g += lim / 2) {
+    const gy = y(g);
+    html += `<line class="grid" x1="${padL}" x2="${W - padR}" y1="${gy}" y2="${gy}"/>`;
+    html += `<text class="gridlbl" x="${padL - 6}" y="${gy + 3}">${sign(g)}${g.toFixed(1)}%</text>`;
+  }
+  html += `<line class="zero" x1="${padL}" x2="${W - padR}" y1="${zeroY}" y2="${zeroY}"/>`;
+
+  list.forEach((s, i) => {
+    const x = padL + i * slot;
+    const bw = slot * 0.58;
+    const bx = x + (slot - bw) / 2;
+    const v = s.pChange;
+    const dir = v >= 0 ? "up" : "down";
+    const by = v >= 0 ? y(v) : zeroY;
+    const bh = Math.max(Math.abs(y(v) - zeroY), 2);
+    const valY = v >= 0 ? by - 6 : by + bh + 13;
+    const lx = x + slot / 2, ly = top + plotH + 12;
+    html += `<g class="bar-group${s.index === selected ? " selected" : ""}" data-idx="${s.index}" tabindex="0" role="button" aria-label="${shortName(s)} ${sign(v)}${v.toFixed(2)} percent">
+      <rect class="hit" x="${x + 2}" y="${top - 16}" width="${slot - 4}" height="${plotH + labelH + 10}" rx="6"/>
+      <rect class="bar ${dir}" x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="3"/>
+      <text class="val ${dir}" x="${lx}" y="${valY}">${sign(v)}${v.toFixed(2)}</text>
+      <text class="lbl" transform="translate(${lx + 4},${ly}) rotate(-50)" text-anchor="end">${shortName(s)}</text>
+    </g>`;
+  });
+  svg.innerHTML = html;
+
+  svg.querySelectorAll(".bar-group").forEach(g => {
+    const s = sectors.find(x => x.index === g.dataset.idx);
+    g.addEventListener("click", () => selectSector(s.index));
+    g.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectSector(s.index); } });
+    g.addEventListener("mousemove", e => showTip(e, s));
+    g.addEventListener("mouseleave", () => tip.style.display = "none");
+  });
+}
+function showTip(e, s) {
+  const pos = rangePos(s.current, s.low, s.high);
+  tip.innerHTML = `<b>${s.indexLongName}</b>
+    <div class="row"><span>Current</span><span>${fmt(s.current)}</span></div>
+    <div class="row"><span>% change</span><span class="${s.pChange >= 0 ? "up-t" : "down-t"}">${sign(s.pChange)}${s.pChange.toFixed(2)}%</span></div>
+    <div class="row"><span>Open</span><span>${fmt(s.open)}</span></div>
+    <div class="row"><span>High / Low</span><span>${fmt(s.high)} / ${fmt(s.low)}</span></div>
+    <div class="row"><span>Day-range position</span><span>${Math.round(pos * 100)}%</span></div>`;
+  tip.style.display = "block";
+  const r = tip.getBoundingClientRect();
+  let lx = e.clientX + 14, ly = e.clientY + 14;
+  if (lx + r.width > innerWidth - 8) lx = e.clientX - r.width - 14;
+  if (ly + r.height > innerHeight - 8) ly = e.clientY - r.height - 14;
+  tip.style.left = lx + "px"; tip.style.top = ly + "px";
+}
+
+/* =========================================================
+   SECTOR STRIP
+   ========================================================= */
+function renderStrip() {
+  const strip = document.getElementById("strip");
+  strip.hidden = !selected;
+  if (!selected) return;
+  const s = sectors.find(x => x.index === selected);
+  const cls = s.pChange >= 0 ? "up-t" : "down-t";
+  const dayPos = rangePos(s.current, s.low, s.high);
+  const hasYr = s.yrHigh > 0 && s.yrLow > 0;
+  const fromHigh = hasYr ? ((s.current - s.yrHigh) / s.yrHigh * 100) : null;
+  document.getElementById("strip").innerHTML = `
+    <div class="ident"><div class="name">${s.indexLongName}</div><div class="sub">${s.index}</div></div>
+    <div class="stat"><div class="k">Current</div><div class="v">${fmt(s.current)}</div></div>
+    <div class="stat"><div class="k">% change</div><div class="v ${cls}">${sign(s.pChange)}${s.pChange.toFixed(2)}%</div></div>
+    <div class="stat"><div class="k">From 52-week high</div><div class="v">${fromHigh === null ? "n/a" : fromHigh.toFixed(2) + "%"}</div></div>
+    <div class="range">
+      <div class="k"><span>Day range</span><span>${Math.round(dayPos * 100)}% of range</span></div>
+      <div class="range-track"><div class="range-dot" style="left:${dayPos * 100}%;background:${s.pChange >= 0 ? "var(--up)" : "var(--down)"}"></div></div>
+      <div class="range-ends"><span>${fmt(s.low)}</span><span>${fmt(s.high)}</span></div>
+    </div>`;
+}
+
+/* =========================================================
+   STOCK TABLE
+   ========================================================= */
+const COLUMNS = [
+  { key: "symbol", label: "Symbol", text: true },
+  { key: "lastPrice", label: "LTP" },
+  { key: "change", label: "Change" },
+  { key: "pChange", label: "% change" },
+  { key: "vsSector", label: "vs sector" },
+  { key: "VWAP", label: "VWAP" },
+  { key: "high", label: "High" },
+  { key: "low", label: "Low" },
+  { key: "totalTradedVolume", label: "Volume" },
+  { key: "quantityTraded", label: "Turnover (₹ Cr)" }
+];
+function renderHead() {
+  document.getElementById("thead").innerHTML = COLUMNS.map(c => {
+    const active = c.key === sortKey;
+    const arrow = active ? (sortDir < 0 ? "▼" : "▲") : "";
+    return `<th class="${active ? "active" : ""}" aria-sort="${active ? (sortDir < 0 ? "descending" : "ascending") : "none"}">
+      <button data-key="${c.key}">${c.label}<span class="arrow">${arrow}</span></button></th>`;
+  }).join("");
+  document.querySelectorAll("#thead button").forEach(b => b.addEventListener("click", () => {
+    const k = b.dataset.key;
+    if (k === sortKey) sortDir *= -1;
+    else { sortKey = k; sortDir = COLUMNS.find(c => c.key === k).text ? 1 : -1; }
+    renderTable();
+  }));
+}
+function renderTable() {
+  if (!selected) {
+    renderHead();
+    document.getElementById("stocksTitle").textContent = "Stocks";
+    document.getElementById("dataBadge").textContent = "";
+    document.getElementById("tbody").innerHTML = `<tr><td class="empty" colspan="${COLUMNS.length}">Tick a sector above to see its stocks.</td></tr>`;
+    return;
+  }
+  const s = sectors.find(x => x.index === selected);
+  const { rows, mock } = getStocks(s);
+  document.getElementById("stocksTitle").textContent = `${s.indexLongName} stocks (${rows.length})`;
+  const badge = document.getElementById("dataBadge");
+  badge.textContent = mock ? "Mock data" : "Real NSE data · " + (rows[0].lastUpdatedTime || "");
+  badge.className = "badge" + (mock ? " mock" : "");
+
+  const data = rows.map(r => ({ ...r, vsSector: num(r.pChange) - s.pChange }));
+  const col = COLUMNS.find(c => c.key === sortKey);
+  data.sort((a, b) => col.text
+    ? String(a[sortKey]).localeCompare(String(b[sortKey])) * sortDir
+    : (num(a[sortKey]) - num(b[sortKey])) * sortDir);
+
+  renderHead();
+  const tbody = document.getElementById("tbody");
+  if (!data.length) {
+    tbody.innerHTML = `<tr><td class="empty" colspan="${COLUMNS.length}">No stocks loaded for this sector yet. Add them to STOCK_DATA.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = data.map(r => {
+    const p = num(r.pChange), ch = num(r.change), vs = r.vsSector;
+    const above = num(r.lastPrice) >= num(r.VWAP);
+    return `<tr>
+      <td class="sym">${r.symbol}</td>
+      <td>${fmt(r.lastPrice)}</td>
+      <td class="${ch >= 0 ? "up-t" : "down-t"}">${sign(ch)}${fmt(ch)}</td>
+      <td><span class="pill ${p >= 0 ? "up" : "down"}">${sign(p)}${p.toFixed(2)}%</span></td>
+      <td class="${vs >= 0 ? "up-t" : "down-t"}">${sign(vs)}${vs.toFixed(2)}</td>
+      <td>${fmt(r.VWAP)}<span class="vw ${above ? "up-t" : "down-t"}" title="${above ? "Price above VWAP" : "Price below VWAP"}">${above ? "▲" : "▼"}</span></td>
+      <td>${fmt(r.high)}</td>
+      <td>${fmt(r.low)}</td>
+      <td>${compact(r.totalTradedVolume)}</td>
+      <td>${crores(r.quantityTraded)}</td>
+    </tr>`;
+  }).join("");
+}
+
+/* =========================================================
+   BREAKOUT ENGINE — 5-minute candles, counted over the whole day
+   A candle "breaks high" when the day high rises above the day high
+   from before that candle (by more than BUFFER). Each candle counts once.
+   Live mode: snapshot.php does the counting and keeps the day on disk.
+   Replay mode: the same algorithm runs here in the browser.
+   ========================================================= */
+const BREAKOUT = {
+  CANDLE_MIN: 5,      // candle size in minutes (must match snapshot.php)
+  BUFFER: 0.0005,     // 0.05% — new day high/low must beat the old one by this much
+  RECENT_CANDLES: 6,  // listed only if it broke within the last 6 candles (30 min)
+  ACTIVE_CANDLES: 2,  // broke in the current or previous candle = "Active", else "Cooling"
+  MAX_ROWS: 10        // show only the top N stocks in each list
+};
+const OPEN_MIN = 9 * 60 + 15, CLOSE_MIN = 15 * 60 + 30;
+const hhmm = m => String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
+const candleStart = i => hhmm(OPEN_MIN + i * BREAKOUT.CANDLE_MIN);
+const candleEnd = i => hhmm(OPEN_MIN + (i + 1) * BREAKOUT.CANDLE_MIN);
+
+// What the list renders from (filled by the server in live mode, by the replay otherwise)
+const BO = { summary: {}, curIdx: null, since: null, quotes: {} };
+
+/* ---- Break tracking (mirror of update_breaks() in snapshot.php) ---- */
+function trackBreak(store, sym, idx, dayHigh, dayLow) {
+  const st = store[sym];
+  if (!st) {
+    store[sym] = { dh: dayHigh, dl: dayLow, ci: idx, hb4: dayHigh, lb4: dayLow, hb: false, lb: false, bh: [], bl: [] };
+    return;
+  }
+  if (idx !== st.ci) { st.ci = idx; st.hb4 = st.dh; st.lb4 = st.dl; st.hb = false; st.lb = false; }
+  if (!st.hb && dayHigh > st.hb4 * (1 + BREAKOUT.BUFFER)) { st.hb = true; st.bh.push(idx); }
+  if (!st.lb && dayLow < st.lb4 * (1 - BREAKOUT.BUFFER)) { st.lb = true; st.bl.push(idx); }
+  st.dh = dayHigh; st.dl = dayLow;
+}
+function streakOf(list, cur) {
+  if (!list.length) return 0;
+  let k = list.length - 1;
+  if (list[k] < cur - 1) return 0;          // current candle may still be forming
+  let n = 1;
+  while (k > 0 && list[k - 1] === list[k] - 1) { n++; k--; }
+  return n;
+}
+// summary row: [highBreaks, lastHighIdx, highStreak, lowBreaks, lastLowIdx, lowStreak]
+function summarise(store, cur) {
+  const out = {};
+  Object.entries(store).forEach(([sym, st]) => {
+    if (!st.bh.length && !st.bl.length) return;
+    out[sym] = [st.bh.length, st.bh.length ? st.bh[st.bh.length - 1] : -1, streakOf(st.bh, cur),
+                st.bl.length, st.bl.length ? st.bl[st.bl.length - 1] : -1, streakOf(st.bl, cur)];
+  });
+  return out;
+}
+
+/* ---------- Stock universe (symbol -> sectors) ---------- */
+const universe = {}; // symbol -> { sectors: [index...], prevClose }
+function buildUniverse() {
+  for (const k in universe) delete universe[k];
+  SECTOR_DATA.forEach(sec => {
+    getStocks(sec).rows.forEach(r => {
+      const u = universe[r.symbol] || (universe[r.symbol] = { sectors: [], prevClose: num(r.lastPrice) - num(r.change) });
+      if (!u.sectors.includes(sec.index)) u.sectors.push(sec.index);
+    });
+  });
+}
+buildUniverse();
+
+/* ---------- Simulated replay (used only when there is no live backend) ---------- */
+const sim = { tick: 0, state: {}, store: {}, timer: null, speed: 1000 };
+const CLOSE_TICK = CLOSE_MIN - OPEN_MIN - 1; // last minute of the session
+
+function simPublish() {
+  const idx = Math.floor(sim.tick / BREAKOUT.CANDLE_MIN);
+  BO.curIdx = idx; BO.since = 0;
+  BO.summary = summarise(sim.store, idx);
+  BO.quotes = {};
+  Object.entries(sim.state).forEach(([sym, st]) => {
+    BO.quotes[sym] = { ltp: st.price, p: (st.price - st.prevClose) / st.prevClose * 100 };
+  });
+}
+function simReset() {
+  sim.tick = 0; sim.state = {}; sim.store = {};
+  Object.entries(universe).forEach(([sym, u]) => {
+    const rng = seededRand("sim" + sym + Date.now());
+    const r = rng();
+    // regime: ~25% trend up, ~25% trend down, rest choppy
+    const drift = r < 0.25 ? 0.0006 + rng() * 0.0008 : r < 0.5 ? -(0.0006 + rng() * 0.0008) : 0;
+    const noise = drift ? 0.0012 : 0.0025;
+    const open = u.prevClose * (1 + (rng() - 0.5) * 0.01);
+    sim.state[sym] = { rng, drift, noise, prevClose: u.prevClose, price: open, high: open, low: open };
+    trackBreak(sim.store, sym, 0, open, open);
+  });
+  simPublish();
+}
+function simStep() {
+  if (sim.tick >= CLOSE_TICK) { simPause(); return; }
+  sim.tick++;
+  const idx = Math.floor(sim.tick / BREAKOUT.CANDLE_MIN);
+  Object.entries(sim.state).forEach(([sym, st]) => {
+    st.price *= 1 + st.drift + (st.rng() - 0.5) * 2 * st.noise;
+    st.high = Math.max(st.high, st.price);
+    st.low = Math.min(st.low, st.price);
+    trackBreak(sim.store, sym, idx, st.high, st.low);
+  });
+  simPublish();
+  renderBreakouts();
+}
+function simPlay() {
+  clearInterval(sim.timer);
+  sim.timer = setInterval(simStep, sim.speed);
+  document.getElementById("boPlay").textContent = "Pause";
+}
+function simPause() {
+  clearInterval(sim.timer); sim.timer = null;
+  document.getElementById("boPlay").textContent = "Play";
+}
+
+/* ---------- Render (shared by live Breakouts and Replay) ---------- */
+function secLabel(idx, names) {
+  const s = sectors.find(x => x.index === idx);
+  if (s) return shortName(s);
+  const n = names && names[idx];
+  return n ? shortName({ index: idx, indexLongName: n }) : String(idx).replace(/^NIFTY\s?/i, "");
+}
+// summary: { sym: [highBreaks, lastHighIdx, highStreak, lowBreaks, lastLowIdx, lowStreak] }
+function buildLists(summary, cur, secOf) {
+  const highs = [], lows = [];
+  if (cur == null) return { highs, lows };
+  const recent = cur - (BREAKOUT.RECENT_CANDLES - 1);
+  Object.entries(summary).forEach(([sym, e]) => {
+    const secs = secOf(sym);
+    if (!secs || !secs.some(i => visible.has(i))) return;
+    if (e[0] > 0 && e[1] >= recent) highs.push([sym, e]);
+    if (e[3] > 0 && e[4] >= recent) lows.push([sym, e]);
+  });
+  highs.sort((a, b) => b[1][0] - a[1][0] || b[1][1] - a[1][1] || b[1][2] - a[1][2]);
+  lows.sort((a, b) => b[1][3] - a[1][3] || b[1][4] - a[1][4] || b[1][5] - a[1][5]);
+  return { highs, lows };
+}
+function rowHtml(sym, e, side, cur, q, secs, names) {
+  const [count, last, streak] = side === "high" ? e.slice(0, 3) : e.slice(3, 6);
+  const active = last >= cur - (BREAKOUT.ACTIVE_CANDLES - 1);
+  const secIdx = (secs || []).find(i => visible.has(i));
+  const p = q && q.p;
+  return `<tr class="${active ? "" : "cooling"}">
+    <td class="sym">${sym}<div class="sec">${secIdx ? secLabel(secIdx, names) : ""}</div></td>
+    <td class="big">${count}</td>
+    <td>${streak || "–"}</td>
+    <td>${candleStart(last)}</td>
+    <td><span class="status ${active ? (side === "high" ? "up" : "down") : ""}">${active ? "Active" : "Cooling"}</span></td>
+    <td>${q && q.ltp != null ? fmt(q.ltp) : "–"}</td>
+    <td>${p != null ? `<span class="pill ${p >= 0 ? "up" : "down"}">${sign(p)}${p.toFixed(2)}%</span>` : "–"}</td>
+  </tr>`;
+}
+// ids: { high, low, highN, lowN }
+function fillLists(ids, lists, cur, quoteOf, secOf, names) {
+  const empty = msg => `<tr><td class="empty" colspan="7">${msg}</td></tr>`;
+  const countLabel = n => n > BREAKOUT.MAX_ROWS ? `Top ${BREAKOUT.MAX_ROWS} of ${n}` : `${n} stocks`;
+  const none = side => !visible.size ? "Tick a sector to scan its stocks."
+    : cur == null ? "No data." : `No stock broke its day ${side} in the ${BREAKOUT.RECENT_CANDLES * BREAKOUT.CANDLE_MIN} minutes up to this point.`;
+  document.getElementById(ids.highN).textContent = countLabel(lists.highs.length);
+  document.getElementById(ids.lowN).textContent = countLabel(lists.lows.length);
+  document.getElementById(ids.high).innerHTML = lists.highs.length
+    ? lists.highs.slice(0, BREAKOUT.MAX_ROWS).map(([s, e]) => rowHtml(s, e, "high", cur, quoteOf(s), secOf(s), names)).join("")
+    : empty(none("high"));
+  document.getElementById(ids.low).innerHTML = lists.lows.length
+    ? lists.lows.slice(0, BREAKOUT.MAX_ROWS).map(([s, e]) => rowHtml(s, e, "low", cur, quoteOf(s), secOf(s), names)).join("")
+    : empty(none("low"));
+}
+
+const liveSecOf = sym => universe[sym] && universe[sym].sectors;
+function renderBreakouts() {
+  document.getElementById("boClock").textContent = LIVE.on ? "Updated " + LIVE.time : hhmm(OPEN_MIN + sim.tick);
+  const cur = BO.curIdx;
+  document.getElementById("boSub").textContent = cur == null
+    ? "Waiting for market data. Counting starts once 5-minute candles arrive during market hours (09:15–15:30)."
+    : `Counts every ${BREAKOUT.CANDLE_MIN}-minute candle that makes a new day high (or low)` +
+      (BO.since != null ? ` since ${candleStart(BO.since)}` : "") +
+      `. Ranked by count; listed only if it broke in the last ${BREAKOUT.RECENT_CANDLES * BREAKOUT.CANDLE_MIN} minutes. ` +
+      `Current candle: ${candleStart(cur)}–${candleEnd(cur)}.`;
+  const lists = buildLists(BO.summary, cur, liveSecOf);
+  document.getElementById("navHigh").textContent = "▲" + lists.highs.length;
+  document.getElementById("navLow").textContent = "▼" + lists.lows.length;
+  document.getElementById("boScope").innerHTML =
+    `Scanning stocks in ${visible.size} of ${sectors.length} sectors. <a href="#sectors">Change sectors</a>`;
+  fillLists({ high: "boHigh", low: "boLow", highN: "boHighN", lowN: "boLowN" },
+    lists, cur, sym => BO.quotes[sym], liveSecOf, null);
+}
+
+/* =========================================================
+   REPLAY — load a saved day and scrub through it candle by candle
+   ========================================================= */
+const LAST_CANDLE = (CLOSE_MIN - OPEN_MIN) / BREAKOUT.CANDLE_MIN - 1;   // 74 → 15:25–15:30
+const R = { loaded: false, day: null, data: null, t: 0, timer: null, speed: 500, pxIdx: {} };
+
+function rpMsg(msg) {
+  document.getElementById("rpSub").textContent = msg;
+}
+async function initReplay() {
+  if (R.loaded) return;
+  R.loaded = true;
+  buildTimelineLabels();
+  rpMsg("Loading saved days…");
+  try {
+    const res = await fetch(LIVE.URL + "?days", { cache: "no-store" });
+    if (!res.ok) throw new Error();
+    const days = await res.json();
+    const sel = document.getElementById("rpDay");
+    sel.innerHTML = days.map(d => `<option value="${d}">${d}</option>`).join("");
+    if (!days.length) { rpMsg("No saved days yet. Days are recorded automatically while snapshot.php runs during market hours."); renderReplay(); return; }
+    await loadDay(days[0]);
+  } catch (e) {
+    R.loaded = false;
+    rpMsg("Replay needs the live backend: open this page through XAMPP (snapshot.php in the same folder).");
+    renderReplay();
+  }
+}
+async function loadDay(day) {
+  rpPause();
+  rpMsg("Loading " + day + "…");
+  try {
+    const res = await fetch(LIVE.URL + "?day=" + encodeURIComponent(day), { cache: "no-store" });
+    if (!res.ok) throw new Error();
+    const d = await res.json();
+    R.day = day; R.data = d; R.pxIdx = {};
+    Object.entries(d.stocks || {}).forEach(([sym, st]) => {
+      R.pxIdx[sym] = Object.keys(st.px || {}).map(Number).sort((a, b) => a - b);
+    });
+    R.t = d.since != null ? d.since : 0;
+    document.getElementById("rpSlider").value = R.t;
+  } catch (e) {
+    R.data = null;
+    rpMsg("Could not load " + day + ".");
+  }
+  renderReplay();
+}
+
+const rpSecOf = sym => (R.data && R.data.sec && R.data.sec[sym]) || liveSecOf(sym);
+function rpQuote(sym, t) {
+  const st = R.data.stocks[sym], keys = R.pxIdx[sym];
+  if (!st || !keys || !keys.length) return null;
+  let k = null;
+  for (const i of keys) { if (i <= t) k = i; else break; }
+  if (k == null) return null;
+  const [ltp, p] = st.px[k];
+  return { ltp, p };
+}
+function rpSummaryAt(t) {
+  const out = {};
+  Object.entries(R.data.stocks || {}).forEach(([sym, st]) => {
+    const bh = (st.bh || []).filter(i => i <= t), bl = (st.bl || []).filter(i => i <= t);
+    if (!bh.length && !bl.length) return;
+    out[sym] = [bh.length, bh.length ? bh[bh.length - 1] : -1, streakOf(bh, t),
+                bl.length, bl.length ? bl[bl.length - 1] : -1, streakOf(bl, t)];
+  });
+  return out;
+}
+
+function buildTimelineLabels() {
+  const marks = [OPEN_MIN, 600, 660, 720, 780, 840, 900];
+  document.getElementById("rpLabels").innerHTML = marks.map(m => {
+    const pct = ((m - OPEN_MIN) / BREAKOUT.CANDLE_MIN) / LAST_CANDLE * 100;
+    return `<span style="left:${pct}%">${hhmm(m)}</span>`;
+  }).join("");
+}
+function drawTimeline() {
+  const svg = document.getElementById("rpBars");
+  const hi = new Array(LAST_CANDLE + 1).fill(0), lo = new Array(LAST_CANDLE + 1).fill(0);
+  if (R.data) {
+    Object.entries(R.data.stocks || {}).forEach(([sym, st]) => {
+      const secs = rpSecOf(sym);
+      if (!secs || !secs.some(i => visible.has(i))) return;
+      (st.bh || []).forEach(i => { if (i <= LAST_CANDLE) hi[i]++; });
+      (st.bl || []).forEach(i => { if (i <= LAST_CANDLE) lo[i]++; });
+    });
+  }
+  const max = Math.max(1, ...hi, ...lo), mid = 30, half = 27;
+  let h = "";
+  if (R.data) {   // shade times with no recorded data
+    const a = R.data.since != null ? R.data.since : LAST_CANDLE + 1, b = R.data.cur != null ? R.data.cur : -1;
+    if (a > 0) h += `<rect class="tl-gap" x="-0.5" y="0" width="${a}" height="60"/>`;
+    if (b < LAST_CANDLE) h += `<rect class="tl-gap" x="${b + 0.5}" y="0" width="${LAST_CANDLE - b}" height="60"/>`;
+  }
+  h += `<rect class="tl-cursor" x="${R.t - 0.5}" y="0" width="1" height="60"/>`;
+  h += `<line class="tl-mid" x1="-0.5" x2="${LAST_CANDLE + 0.5}" y1="${mid}" y2="${mid}"/>`;
+  for (let i = 0; i <= LAST_CANDLE; i++) {
+    if (hi[i]) { const bh = hi[i] / max * half; h += `<rect class="tl-up" x="${i - 0.35}" y="${mid - bh}" width="0.7" height="${bh}"><title>${candleStart(i)}: ${hi[i]} high breaks</title></rect>`; }
+    if (lo[i]) { const bh = lo[i] / max * half; h += `<rect class="tl-down" x="${i - 0.35}" y="${mid}" width="0.7" height="${bh}"><title>${candleStart(i)}: ${lo[i]} low breaks</title></rect>`; }
+  }
+  svg.innerHTML = h;
+  const now = document.getElementById("rpNow");
+  now.textContent = candleStart(R.t);
+  now.style.left = `calc(7px + ${R.t / LAST_CANDLE} * (100% - 14px))`;
+}
+function renderReplay() {
+  drawTimeline();
+  document.getElementById("rpPlay").textContent = R.timer ? "Pause" : "Play";
+  document.getElementById("rpScope").innerHTML =
+    `Scanning stocks in ${visible.size} of ${sectors.length} sectors. <a href="#sectors">Change sectors</a>`;
+  if (!R.data) {
+    fillLists({ high: "rpHigh", low: "rpLow", highN: "rpHighN", lowN: "rpLowN" }, { highs: [], lows: [] }, null, () => null, () => null, null);
+    return;
+  }
+  const t = R.t, d = R.data;
+  const recorded = d.since != null && t >= d.since && t <= d.cur;
+  rpMsg(`${R.day} · As of ${candleEnd(t)} (candle ${candleStart(t)}–${candleEnd(t)}).` +
+    (d.since != null ? ` Recorded ${candleStart(d.since)}–${candleEnd(d.cur)}.` : "") +
+    (recorded ? "" : " No data was recorded at this time.") +
+    " Drag the timeline or use ← → to move 5 minutes.");
+  const lists = buildLists(rpSummaryAt(t), t, rpSecOf);
+  fillLists({ high: "rpHigh", low: "rpLow", highN: "rpHighN", lowN: "rpLowN" },
+    lists, t, sym => rpQuote(sym, t), rpSecOf, d.names);
+}
+function rpSet(t) {
+  R.t = Math.max(0, Math.min(LAST_CANDLE, t));
+  document.getElementById("rpSlider").value = R.t;
+  renderReplay();
+}
+function rpPlay() {
+  if (!R.data) return;
+  const end = R.data.cur != null ? R.data.cur : LAST_CANDLE;
+  if (R.t >= end) R.t = R.data.since != null ? R.data.since : 0;   // restart from the beginning
+  clearInterval(R.timer);
+  R.timer = setInterval(() => {
+    if (R.t >= end) { rpPause(); return; }
+    rpSet(R.t + 1);
+  }, R.speed);
+  renderReplay();
+}
+function rpPause() {
+  clearInterval(R.timer); R.timer = null;
+  document.getElementById("rpPlay").textContent = "Play";
+}
+document.getElementById("rpSlider").addEventListener("input", e => rpSet(+e.target.value));
+document.getElementById("rpPlay").addEventListener("click", () => R.timer ? rpPause() : rpPlay());
+document.getElementById("rpDay").addEventListener("change", e => loadDay(e.target.value));
+document.getElementById("rpSpeed").addEventListener("change", e => { R.speed = +e.target.value; if (R.timer) rpPlay(); });
+
+document.getElementById("boPlay").addEventListener("click", () => sim.timer ? simPause() : simPlay());
+document.getElementById("boStep").addEventListener("click", () => { simPause(); simStep(); });
+document.getElementById("boReset").addEventListener("click", () => { simReset(); renderBreakouts(); simPlay(); });
+document.getElementById("boSpeed").addEventListener("change", e => { sim.speed = +e.target.value; if (sim.timer) simPlay(); });
+
+/* =========================================================
+   WIRE-UP
+   ========================================================= */
+function selectSector(idx) {
+  selected = idx;
+  document.querySelectorAll(".bar-group").forEach(g => g.classList.toggle("selected", g.dataset.idx === idx));
+  renderStrip();
+  renderTable();
+}
+
+/* =========================================================
+   LIVE MODE — used when the page is opened through server.js
+   (http://localhost:3000). Falls back to embedded data + replay otherwise.
+   ========================================================= */
+const LIVE = { on: false, polls: 0, time: "", INTERVAL: 60000, timer: null, error: "",
+  URL: "snapshot.php" };  // works with XAMPP (PHP) and with server.js
+const NUM_FIELDS = ["close","current","high","low","open","pChange","yrHigh","yrLow"];
+
+function applyLiveData(d) {
+  if (!LIVE.on) {             // first live data: drop the simulator and its history
+    LIVE.on = true;
+    simPause();
+    document.getElementById("simCtrls").hidden = true;
+    const b = document.getElementById("boBadge");
+    b.textContent = "Live"; b.className = "badge";
+  }
+  d.sectors = d.sectors.filter(keepSector);
+  d.sectors.forEach(sec => NUM_FIELDS.forEach(k => { sec[k] = parseFloat(sec[k]) || 0; }));
+  const firstLoad = LIVE.polls === 0;
+  SECTOR_DATA.splice(0, SECTOR_DATA.length, ...d.sectors);
+  sectors.splice(0, sectors.length, ...[...d.sectors].sort((a, b) => b.pChange - a.pChange));
+  for (const k in STOCK_DATA) delete STOCK_DATA[k];
+  Object.assign(STOCK_DATA, d.stocks || {});
+  if (firstLoad) { visible.clear(); sectors.forEach(sec => visible.add(sec.index)); }
+  buildUniverse();
+
+  // breakout counts come from snapshot.php (kept for the whole day on the server)
+  BO.summary = d.breaks || {};
+  BO.curIdx = d.candle != null ? d.candle : null;
+  BO.since = d.since != null ? d.since : null;
+  BO.quotes = {};
+  Object.values(d.stocks || {}).forEach(rows => rows.forEach(r => {
+    BO.quotes[r.symbol] = { ltp: num(r.lastPrice), p: num(r.pChange) };
+  }));
+  LIVE.polls++;
+  LIVE.time = new Date(d.fetchedAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+
+  if (!selected || !visible.has(selected)) selected = (shown()[0] || {}).index || null;
+  renderFilters();
+  renderHeader();
+  renderChart();
+  renderBreakouts();
+  if (selected) selectSector(selected); else { renderStrip(); renderTable(); }
+}
+
+// returns "ok" | "warming" | "error" | "none"
+async function pollLive() {
+  try {
+    const res = await fetch(LIVE.URL, { cache: "no-store" });
+    if (res.status === 503) return "warming";
+    if (res.status === 404) return "none";            // no live backend here
+    if (!res.ok) {
+      try { LIVE.error = (await res.json()).error || ("HTTP " + res.status); } catch (e) { LIVE.error = "HTTP " + res.status; }
+      return "error";
+    }
+    let d;
+    try { d = await res.json(); } catch (e) { LIVE.error = "snapshot.php did not return JSON (is PHP running?)"; return "error"; }
+    if (!d.sectors || !d.sectors.length) return "warming";
+    applyLiveData(d);
+    return "ok";
+  } catch (e) {
+    return "none";
+  }
+}
+
+async function startLive() {
+  const r = await pollLive();
+  if (r === "none") return;                         // no backend: stay on embedded data + replay
+  if (r === "error") {
+    document.getElementById("stamp").textContent = "Live data error: " + LIVE.error + " (retrying in 1 min)";
+    setTimeout(startLive, LIVE.INTERVAL);
+    return;
+  }
+  if (r === "warming") {
+    document.getElementById("stamp").textContent = "Connecting to live NSE data…";
+    setTimeout(startLive, 5000);
+    return;
+  }
+  LIVE.timer = setInterval(async () => {
+    const res = await pollLive();
+    if (res !== "ok") document.getElementById("stamp").textContent =
+      "Live update failed" + (LIVE.error ? ": " + LIVE.error : "") + ", retrying…";
+  }, LIVE.INTERVAL);
+}
+
+/* =========================================================
+   PAGES (hash routing: #sectors, #breakouts)
+   ========================================================= */
+const VIEWS = { sectors: "Sector overview", breakouts: "Breakouts", replay: "Replay" };
+function route() {
+  const key = location.hash.slice(1);
+  showView(VIEWS[key] ? key : "sectors");
+}
+function showView(view) {
+  Object.keys(VIEWS).forEach(v => document.getElementById("view-" + v).hidden = v !== view);
+  document.querySelectorAll(".nav-item").forEach(a =>
+    a.dataset.view === view ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current"));
+  document.getElementById("pageTitle").textContent = VIEWS[view];
+  document.getElementById("breadth").style.display = view === "sectors" ? "" : "none";
+  document.title = VIEWS[view] + " | NSE Screener";
+  if (view === "replay") initReplay(); else rpPause();
+  tip.style.display = "none";
+}
+window.addEventListener("hashchange", route);
+// Handle clicks directly so page switching works even inside previews/iframes that block hash navigation
+document.addEventListener("click", e => {
+  const a = e.target.closest('a[href^="#"]');
+  if (!a) return;
+  const view = a.getAttribute("href").slice(1);
+  if (!VIEWS[view]) return;
+  e.preventDefault();
+  showView(view);
+  try { history.replaceState(null, "", "#" + view); } catch (err) { /* preview may block URL changes */ }
+  window.scrollTo(0, 0);
+});
+
+renderFilters();
+renderHeader();
+renderChart();
+selectSector(selected);
+simReset();
+renderBreakouts();
+simPlay();
+route();
+startLive();
+</script>
+</body>
+</html>
