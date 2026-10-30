@@ -221,17 +221,44 @@
   }
   .bo-controls button:focus-visible, .bo-controls select:focus-visible { outline: 2px solid var(--select); outline-offset: 2px; }
   .clock { font-weight: 600; min-width: 4.5em; }
-  .bo-grid { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid var(--line); }
+  .bo-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); border-top: 1px solid var(--line); }
+  .bo-col { min-width: 0; }
   .bo-col + .bo-col { border-left: 1px solid var(--line); }
   .bo-col h3 { font-size: .95rem; margin: 0; padding: 12px 14px 8px; display: flex; justify-content: space-between; align-items: baseline; }
   .bo-col h3 .n { font-size: .8rem; color: var(--muted); font-weight: 500; }
-  .bo-col table { min-width: 560px; }
+  .bo-col table { min-width: 620px; }
   .bo-col .sec { color: var(--muted); font-size: .82rem; }
   .bo-col td.big { font-weight: 700; font-size: 1.05rem; }
   .bo-col tr.cooling td { opacity: .5; }
   .status { font-size: .78rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
   .status.up { color: var(--up); border-color: var(--up); }
   .status.down { color: var(--down); border-color: var(--down); }
+  .status.pb { color: var(--select); border-color: var(--select); }
+  .setup-filters label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+  .setup-filters input { accent-color: var(--select); }
+  .setups-table { min-width: 960px; }
+  .setups-table td.sym { line-height: 1.25; }
+  .dir-pill { display: inline-block; font-weight: 700; font-size: .8rem; padding: 1px 8px; border-radius: 6px; white-space: nowrap; }
+  .dir-pill.L { background: var(--up-soft); color: var(--up); }
+  .dir-pill.S { background: var(--down-soft); color: var(--down); }
+  .dir-pill small { font-weight: 500; opacity: .8; }
+  .setups-table th:nth-child(2), .setups-table td:nth-child(2) { text-align: left; }
+  .bo-badge { display: inline-block; font-size: .7rem; font-weight: 600; padding: 0 6px; border-radius: 999px; margin-left: 4px; vertical-align: 1px; }
+  .bo-badge.L { color: var(--up); border: 1px solid var(--up); }
+  .bo-badge.S { color: var(--down); border: 1px solid var(--down); }
+  .aplus { font-weight: 700; font-size: .78rem; padding: 1px 8px; border-radius: 999px; background: var(--select); color: var(--panel); }
+  .ema-note { display: block; font-size: .72rem; color: var(--muted); margin-top: 2px; }
+  .res { font-weight: 600; font-size: .82rem; }
+  .res.T { color: var(--up); }
+  .res.S { color: var(--down); }
+  .res.O { color: var(--muted); }
+  tr.against td { opacity: .55; }
+  .rp-setups { border-top: 1px solid var(--line); }
+  .rp-setups h3 { font-size: .95rem; margin: 0; padding: 12px 14px 4px; display: flex; justify-content: space-between; align-items: baseline; }
+  .rp-setups h3 .n { font-size: .8rem; color: var(--muted); font-weight: 500; }
+  .rp-setups .setup-filters { padding: 0 14px 8px; }
+  .tl-setup { fill: var(--select); }
+  .tl-legend-setup { color: var(--select); }
   .timeline { padding: 4px 16px 10px; }
   .tl-nowrow { position: relative; height: 24px; }
   .tl-now {
@@ -256,8 +283,8 @@
   #rpSlider::-moz-range-track { height: 6px; background: var(--line); border-radius: 3px; }
   #rpSlider::-moz-range-thumb { width: 10px; height: 18px; border-radius: 4px; background: var(--select); border: 2px solid var(--panel); }
 
-  @media (max-width: 1000px) {
-    .bo-grid { grid-template-columns: 1fr; }
+  @media (max-width: 1500px) {
+    .bo-grid { grid-template-columns: minmax(0, 1fr); }
     .bo-col + .bo-col { border-left: 0; border-top: 1px solid var(--line); }
   }
 
@@ -281,6 +308,11 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 16l5-5 4 4 7-7M15 8h5v5"/></svg>
       Breakouts
       <span class="nav-count"><span class="up-t" id="navHigh"></span><span class="down-t" id="navLow"></span></span>
+    </a>
+    <a class="nav-item" href="#setups" data-view="setups">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+      Setups
+      <span class="nav-count"><span id="navSetups"></span></span>
     </a>
     <a class="nav-item" href="#replay" data-view="replay">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3 2"/></svg>
@@ -336,7 +368,7 @@
   <div class="view" id="view-breakouts" hidden>
   <section class="panel breakouts" aria-label="Stocks breaking highs and lows">
     <div class="bo-head">
-      <h2>Continuously breaking highs and lows</h2>
+      <h2>Pullback breakouts and breakdowns</h2>
       <div class="bo-controls">
         <span class="badge mock" id="boBadge">Simulated replay</span>
         <span class="clock" id="boClock"></span>
@@ -358,20 +390,40 @@
     <p class="scope" id="boScope"></p>
     <div class="bo-grid">
       <div class="bo-col">
-        <h3><span class="up-t">Making new highs</span><span class="n" id="boHighN"></span></h3>
+        <h3><span class="up-t">Pullback breakouts</span><span class="n" id="boHighN"></span></h3>
         <div class="table-scroll"><table>
-          <thead><tr><th>Symbol</th><th>High breaks today</th><th>Streak</th><th>Last break</th><th>Status</th><th>LTP</th><th>% change</th></tr></thead>
+          <thead><tr><th>Symbol</th><th>Breakouts today</th><th>Level broken</th><th>Last breakout</th><th>Status</th><th>LTP</th><th>% change</th></tr></thead>
           <tbody id="boHigh"></tbody>
         </table></div>
       </div>
       <div class="bo-col">
-        <h3><span class="down-t">Making new lows</span><span class="n" id="boLowN"></span></h3>
+        <h3><span class="down-t">Pullback breakdowns</span><span class="n" id="boLowN"></span></h3>
         <div class="table-scroll"><table>
-          <thead><tr><th>Symbol</th><th>Low breaks today</th><th>Streak</th><th>Last break</th><th>Status</th><th>LTP</th><th>% change</th></tr></thead>
+          <thead><tr><th>Symbol</th><th>Breakdowns today</th><th>Level broken</th><th>Last breakdown</th><th>Status</th><th>LTP</th><th>% change</th></tr></thead>
           <tbody id="boLow"></tbody>
         </table></div>
       </div>
     </div>
+  </section>
+  </div>
+
+  <div class="view" id="view-setups" hidden>
+  <section class="panel breakouts" aria-label="Pullback setups">
+    <div class="bo-head">
+      <h2>Trend pullback setups (5 min)</h2>
+      <div class="bo-controls setup-filters">
+        <label><input type="checkbox" class="f-aplus"> A+ only</label>
+        <label><input type="checkbox" class="f-nifty"> Include against Nifty</label>
+        <label><input type="checkbox" class="f-vwap"> Include against VWAP</label>
+        <label><input type="checkbox" class="f-bo"> Include stocks not in Breakouts</label>
+      </div>
+    </div>
+    <div class="bo-sub">Only stocks on the Breakouts list (a pullback breakout in the same direction within the last 30 minutes). 3+ candles in the trend direction, exactly 2 opposite candles, then a trigger candle back in the trend direction. Entry at the trigger close, SL beyond the trigger candle, target 1:3. Nifty 50 must be up (longs) or down (shorts) on the day, and the trigger must close above VWAP (longs) or below it (shorts). A+ = trigger candle touched the 9 or 15 EMA.</div>
+    <p class="scope" id="stSummary"></p>
+    <div class="table-scroll"><table class="setups-table">
+          <thead><tr><th>Time</th><th>Symbol</th><th>Side</th><th>Grade</th><th>Entry</th><th>SL</th><th>Target (1:3)</th><th>Nifty 50</th><th>VWAP</th><th>Result</th></tr></thead>
+          <tbody id="stRows"></tbody>
+        </table></div>
   </section>
   </div>
 
@@ -397,24 +449,37 @@
       <div class="tl-pad"><svg id="rpBars" class="tl-bars" viewBox="-0.5 0 75 60" preserveAspectRatio="none" aria-hidden="true"></svg></div>
       <input type="range" id="rpSlider" min="0" max="74" step="1" value="0" aria-label="Replay time (5-minute steps)">
       <div class="tl-pad"><div class="tl-labels" id="rpLabels"></div></div>
-      <div class="tl-legend"><span class="up-t">▮ stocks breaking day highs</span><span class="down-t">▮ stocks breaking day lows</span></div>
+      <div class="tl-legend"><span class="up-t">▮ pullback breakouts</span><span class="down-t">▮ pullback breakdowns</span><span class="tl-legend-setup">● setup (A+ is larger)</span></div>
     </div>
     <p class="scope" id="rpScope"></p>
     <div class="bo-grid">
       <div class="bo-col">
-        <h3><span class="up-t">Making new highs</span><span class="n" id="rpHighN"></span></h3>
+        <h3><span class="up-t">Pullback breakouts</span><span class="n" id="rpHighN"></span></h3>
         <div class="table-scroll"><table>
-          <thead><tr><th>Symbol</th><th>High breaks today</th><th>Streak</th><th>Last break</th><th>Status</th><th>LTP</th><th>% change</th></tr></thead>
+          <thead><tr><th>Symbol</th><th>Breakouts today</th><th>Level broken</th><th>Last breakout</th><th>Status</th><th>LTP</th><th>% change</th></tr></thead>
           <tbody id="rpHigh"></tbody>
         </table></div>
       </div>
       <div class="bo-col">
-        <h3><span class="down-t">Making new lows</span><span class="n" id="rpLowN"></span></h3>
+        <h3><span class="down-t">Pullback breakdowns</span><span class="n" id="rpLowN"></span></h3>
         <div class="table-scroll"><table>
-          <thead><tr><th>Symbol</th><th>Low breaks today</th><th>Streak</th><th>Last break</th><th>Status</th><th>LTP</th><th>% change</th></tr></thead>
+          <thead><tr><th>Symbol</th><th>Breakdowns today</th><th>Level broken</th><th>Last breakdown</th><th>Status</th><th>LTP</th><th>% change</th></tr></thead>
           <tbody id="rpLow"></tbody>
         </table></div>
       </div>
+    </div>
+    <div class="rp-setups">
+      <h3><span>Setups up to this time</span><span class="n" id="rpSetupsN"></span></h3>
+      <div class="bo-controls setup-filters">
+        <label><input type="checkbox" class="f-aplus"> A+ only</label>
+        <label><input type="checkbox" class="f-nifty"> Include against Nifty</label>
+        <label><input type="checkbox" class="f-vwap"> Include against VWAP</label>
+        <label><input type="checkbox" class="f-bo"> Include stocks not in Breakouts</label>
+      </div>
+      <div class="table-scroll"><table class="setups-table">
+          <thead><tr><th>Time</th><th>Symbol</th><th>Side</th><th>Grade</th><th>Entry</th><th>SL</th><th>Target (1:3)</th><th>Nifty 50</th><th>VWAP</th><th>Result</th></tr></thead>
+          <tbody id="rpSetups"></tbody>
+        </table></div>
     </div>
   </section>
   </div>
@@ -431,7 +496,7 @@
 const KEEP_SECTORS = [
   "NIFTY AUTO", "NIFTY PHARMA", "NIFTY BANK", "NIFTY PSU BANK", "NIFTY METAL",
   "NIFTY CEMENT", "NIFTY FMCG", "NIFTY REALTY", "NIFTY IT", "NIFTY OIL AND GAS",
-  "NIFTY 50"
+  "NIFTY 50", "NIFTY ENERGY"
 ];
 const keepSector = sec => !KEEP_SECTORS.length || KEEP_SECTORS.includes(sec.index);
 
@@ -612,6 +677,7 @@ function applyFilter() {
   renderHeader();
   renderChart();
   renderBreakouts();
+  renderSetups();
   if (R.data) renderReplay();
   const list = shown();
   if (!list.length) { selected = null; renderStrip(); renderTable(); return; }
@@ -806,17 +872,18 @@ function renderTable() {
 }
 
 /* =========================================================
-   BREAKOUT ENGINE — 5-minute candles, counted over the whole day
-   A candle "breaks high" when the day high rises above the day high
-   from before that candle (by more than BUFFER). Each candle counts once.
-   Live mode: snapshot.php does the counting and keeps the day on disk.
-   Replay mode: the same algorithm runs here in the browser.
+   BREAKOUT ENGINE — pullback-and-break on 5-minute candles (close-based)
+   Highs: the highest high is the level; a red candle that makes no new high is a pullback;
+   a later candle CLOSING above the level = 1 breakout, and its high becomes the next level.
+   Lows: mirror image (green bounce candle, then a close below the low).
+   Live mode: snapshot.php does this at each candle close and keeps the day on disk.
+   Offline replay: the same logic runs here in the browser.
    ========================================================= */
 const BREAKOUT = {
   CANDLE_MIN: 5,      // candle size in minutes (must match snapshot.php)
-  BUFFER: 0.0005,     // 0.05% — new day high/low must beat the old one by this much
-  RECENT_CANDLES: 6,  // listed only if it broke within the last 6 candles (30 min)
-  ACTIVE_CANDLES: 2,  // broke in the current or previous candle = "Active", else "Cooling"
+  BUFFER: 0.0005,     // close must beat the level by 0.05% (must match BREAK_BUFFER)
+  RECENT_CANDLES: 7,  // listed only if it broke out within the last 6 completed candles (30 min)
+  ACTIVE_CANDLES: 3,  // broke out in the last 2 completed candles = "Active", else "Cooling"
   MAX_ROWS: 10        // show only the top N stocks in each list
 };
 const OPEN_MIN = 9 * 60 + 15, CLOSE_MIN = 15 * 60 + 30;
@@ -825,35 +892,30 @@ const candleStart = i => hhmm(OPEN_MIN + i * BREAKOUT.CANDLE_MIN);
 const candleEnd = i => hhmm(OPEN_MIN + (i + 1) * BREAKOUT.CANDLE_MIN);
 
 // What the list renders from (filled by the server in live mode, by the replay otherwise)
-const BO = { summary: {}, curIdx: null, since: null, quotes: {} };
+const BO = { summary: {}, curIdx: null, since: null, quotes: {}, signals: [], sec: null };
 
-/* ---- Break tracking (mirror of update_breaks() in snapshot.php) ---- */
-function trackBreak(store, sym, idx, dayHigh, dayLow) {
-  const st = store[sym];
-  if (!st) {
-    store[sym] = { dh: dayHigh, dl: dayLow, ci: idx, hb4: dayHigh, lb4: dayLow, hb: false, lb: false, bh: [], bl: [] };
-    return;
-  }
-  if (idx !== st.ci) { st.ci = idx; st.hb4 = st.dh; st.lb4 = st.dl; st.hb = false; st.lb = false; }
-  if (!st.hb && dayHigh > st.hb4 * (1 + BREAKOUT.BUFFER)) { st.hb = true; st.bh.push(idx); }
-  if (!st.lb && dayLow < st.lb4 * (1 - BREAKOUT.BUFFER)) { st.lb = true; st.bl.push(idx); }
-  st.dh = dayHigh; st.dl = dayLow;
+/* ---- Pullback-breakout tracking on completed candles (mirror of snapshot.php) ---- */
+function newTracker() { return { swh: null, swl: null, pbh: false, pbl: false, bh: [], bl: [], bhl: [], bll: [] }; }
+function closeCandle(tr, idx, k) {        // k = { o, h, l, c }
+  if (tr.swh == null) { tr.swh = k.h; tr.swl = k.l; return; }
+  const color = k.c > k.o ? 1 : k.c < k.o ? -1 : 0;
+  if (tr.pbh && k.c > tr.swh * (1 + BREAKOUT.BUFFER)) { tr.bh.push(idx); tr.bhl.push(tr.swh); tr.swh = k.h; tr.pbh = false; }
+  else if (k.h > tr.swh) { tr.swh = k.h; tr.pbh = false; }
+  else if (color === -1) tr.pbh = true;
+  if (tr.pbl && k.c < tr.swl * (1 - BREAKOUT.BUFFER)) { tr.bl.push(idx); tr.bll.push(tr.swl); tr.swl = k.l; tr.pbl = false; }
+  else if (k.l < tr.swl) { tr.swl = k.l; tr.pbl = false; }
+  else if (color === 1) tr.pbl = true;
 }
-function streakOf(list, cur) {
-  if (!list.length) return 0;
-  let k = list.length - 1;
-  if (list[k] < cur - 1) return 0;          // current candle may still be forming
-  let n = 1;
-  while (k > 0 && list[k - 1] === list[k] - 1) { n++; k--; }
-  return n;
+// summary row: [breakouts, lastBreakoutIdx, lastLevel, breakdowns, lastBreakdownIdx, lastLevel]
+// + [6] pulling back now (highs), [7] pulling back now (lows); null = unknown
+function summaryRow(bh, bhl, bl, bll, pbh = null, pbl = null) {
+  return [bh.length, bh.length ? bh[bh.length - 1] : -1, bh.length ? bhl[bh.length - 1] : null,
+          bl.length, bl.length ? bl[bl.length - 1] : -1, bl.length ? bll[bl.length - 1] : null, pbh, pbl];
 }
-// summary row: [highBreaks, lastHighIdx, highStreak, lowBreaks, lastLowIdx, lowStreak]
-function summarise(store, cur) {
+function summarise(trackers) {
   const out = {};
-  Object.entries(store).forEach(([sym, st]) => {
-    if (!st.bh.length && !st.bl.length) return;
-    out[sym] = [st.bh.length, st.bh.length ? st.bh[st.bh.length - 1] : -1, streakOf(st.bh, cur),
-                st.bl.length, st.bl.length ? st.bl[st.bl.length - 1] : -1, streakOf(st.bl, cur)];
+  Object.entries(trackers).forEach(([sym, tr]) => {
+    if (tr.bh.length || tr.bl.length) out[sym] = summaryRow(tr.bh, tr.bhl, tr.bl, tr.bll, tr.pbh ? 1 : 0, tr.pbl ? 1 : 0);
   });
   return out;
 }
@@ -872,29 +934,31 @@ function buildUniverse() {
 buildUniverse();
 
 /* ---------- Simulated replay (used only when there is no live backend) ---------- */
-const sim = { tick: 0, state: {}, store: {}, timer: null, speed: 1000 };
+const sim = { tick: 0, state: {}, timer: null, speed: 1000 };
 const CLOSE_TICK = CLOSE_MIN - OPEN_MIN - 1; // last minute of the session
 
 function simPublish() {
   const idx = Math.floor(sim.tick / BREAKOUT.CANDLE_MIN);
   BO.curIdx = idx; BO.since = 0;
-  BO.summary = summarise(sim.store, idx);
+  const trackers = {};
   BO.quotes = {};
   Object.entries(sim.state).forEach(([sym, st]) => {
+    trackers[sym] = st.tr;
     BO.quotes[sym] = { ltp: st.price, p: (st.price - st.prevClose) / st.prevClose * 100 };
   });
+  BO.summary = summarise(trackers);
 }
 function simReset() {
-  sim.tick = 0; sim.state = {}; sim.store = {};
+  sim.tick = 0; sim.state = {};
   Object.entries(universe).forEach(([sym, u]) => {
     const rng = seededRand("sim" + sym + Date.now());
     const r = rng();
     // regime: ~25% trend up, ~25% trend down, rest choppy
     const drift = r < 0.25 ? 0.0006 + rng() * 0.0008 : r < 0.5 ? -(0.0006 + rng() * 0.0008) : 0;
-    const noise = drift ? 0.0012 : 0.0025;
+    const noise = drift ? 0.0016 : 0.0025;
     const open = u.prevClose * (1 + (rng() - 0.5) * 0.01);
-    sim.state[sym] = { rng, drift, noise, prevClose: u.prevClose, price: open, high: open, low: open };
-    trackBreak(sim.store, sym, 0, open, open);
+    sim.state[sym] = { rng, drift, noise, prevClose: u.prevClose, price: open,
+      k: { i: 0, o: open, h: open, l: open, c: open }, tr: newTracker() };
   });
   simPublish();
 }
@@ -902,11 +966,14 @@ function simStep() {
   if (sim.tick >= CLOSE_TICK) { simPause(); return; }
   sim.tick++;
   const idx = Math.floor(sim.tick / BREAKOUT.CANDLE_MIN);
-  Object.entries(sim.state).forEach(([sym, st]) => {
+  Object.values(sim.state).forEach(st => {
     st.price *= 1 + st.drift + (st.rng() - 0.5) * 2 * st.noise;
-    st.high = Math.max(st.high, st.price);
-    st.low = Math.min(st.low, st.price);
-    trackBreak(sim.store, sym, idx, st.high, st.low);
+    if (idx !== st.k.i) {                       // previous candle finished
+      closeCandle(st.tr, st.k.i, st.k);
+      st.k = { i: idx, o: st.price, h: st.price, l: st.price, c: st.price };
+    } else {
+      st.k.h = Math.max(st.k.h, st.price); st.k.l = Math.min(st.k.l, st.price); st.k.c = st.price;
+    }
   });
   simPublish();
   renderBreakouts();
@@ -939,21 +1006,24 @@ function buildLists(summary, cur, secOf) {
     if (e[0] > 0 && e[1] >= recent) highs.push([sym, e]);
     if (e[3] > 0 && e[4] >= recent) lows.push([sym, e]);
   });
-  highs.sort((a, b) => b[1][0] - a[1][0] || b[1][1] - a[1][1] || b[1][2] - a[1][2]);
-  lows.sort((a, b) => b[1][3] - a[1][3] || b[1][4] - a[1][4] || b[1][5] - a[1][5]);
+  highs.sort((a, b) => b[1][0] - a[1][0] || b[1][1] - a[1][1]);
+  lows.sort((a, b) => b[1][3] - a[1][3] || b[1][4] - a[1][4]);
   return { highs, lows };
 }
 function rowHtml(sym, e, side, cur, q, secs, names) {
-  const [count, last, streak] = side === "high" ? e.slice(0, 3) : e.slice(3, 6);
+  const [count, last, level] = side === "high" ? e.slice(0, 3) : e.slice(3, 6);
+  const pb = side === "high" ? e[6] : e[7];
   const active = last >= cur - (BREAKOUT.ACTIVE_CANDLES - 1);
+  const status = active ? "Active" : pb == null ? "Cooling" : pb ? "Pulling back" : "Extended";
+  const stCls = active ? (side === "high" ? "up" : "down") : pb ? "pb" : "";
   const secIdx = (secs || []).find(i => visible.has(i));
   const p = q && q.p;
-  return `<tr class="${active ? "" : "cooling"}">
+  return `<tr class="${active || pb ? "" : "cooling"}">
     <td class="sym">${sym}<div class="sec">${secIdx ? secLabel(secIdx, names) : ""}</div></td>
     <td class="big">${count}</td>
-    <td>${streak || "–"}</td>
-    <td>${candleStart(last)}</td>
-    <td><span class="status ${active ? (side === "high" ? "up" : "down") : ""}">${active ? "Active" : "Cooling"}</span></td>
+    <td>${level > 0 ? fmt(level) : "–"}</td>
+    <td>${candleEnd(last)}</td>
+    <td><span class="status ${stCls}">${status}</span></td>
     <td>${q && q.ltp != null ? fmt(q.ltp) : "–"}</td>
     <td>${p != null ? `<span class="pill ${p >= 0 ? "up" : "down"}">${sign(p)}${p.toFixed(2)}%</span>` : "–"}</td>
   </tr>`;
@@ -963,7 +1033,7 @@ function fillLists(ids, lists, cur, quoteOf, secOf, names) {
   const empty = msg => `<tr><td class="empty" colspan="7">${msg}</td></tr>`;
   const countLabel = n => n > BREAKOUT.MAX_ROWS ? `Top ${BREAKOUT.MAX_ROWS} of ${n}` : `${n} stocks`;
   const none = side => !visible.size ? "Tick a sector to scan its stocks."
-    : cur == null ? "No data." : `No stock broke its day ${side} in the ${BREAKOUT.RECENT_CANDLES * BREAKOUT.CANDLE_MIN} minutes up to this point.`;
+    : cur == null ? "No data." : `No pullback ${side === "high" ? "breakout" : "breakdown"} in the ${(BREAKOUT.RECENT_CANDLES - 1) * BREAKOUT.CANDLE_MIN} minutes up to this point.`;
   document.getElementById(ids.highN).textContent = countLabel(lists.highs.length);
   document.getElementById(ids.lowN).textContent = countLabel(lists.lows.length);
   document.getElementById(ids.high).innerHTML = lists.highs.length
@@ -980,9 +1050,10 @@ function renderBreakouts() {
   const cur = BO.curIdx;
   document.getElementById("boSub").textContent = cur == null
     ? "Waiting for market data. Counting starts once 5-minute candles arrive during market hours (09:15–15:30)."
-    : `Counts every ${BREAKOUT.CANDLE_MIN}-minute candle that makes a new day high (or low)` +
-      (BO.since != null ? ` since ${candleStart(BO.since)}` : "") +
-      `. Ranked by count; listed only if it broke in the last ${BREAKOUT.RECENT_CANDLES * BREAKOUT.CANDLE_MIN} minutes. ` +
+    : `Counts pullback breakouts on ${BREAKOUT.CANDLE_MIN}-minute candles: the stock pulls back (a red candle below its high), ` +
+      `then a candle closes above that high. Lows are the mirror image` +
+      (BO.since != null ? `. Tracking since ${candleStart(BO.since)}` : "") +
+      `. Ranked by count; listed only if it broke out in the last ${(BREAKOUT.RECENT_CANDLES - 1) * BREAKOUT.CANDLE_MIN} minutes. ` +
       `Current candle: ${candleStart(cur)}–${candleEnd(cur)}.`;
   const lists = buildLists(BO.summary, cur, liveSecOf);
   document.getElementById("navHigh").textContent = "▲" + lists.highs.length;
@@ -992,6 +1063,110 @@ function renderBreakouts() {
   fillLists({ high: "boHigh", low: "boLow", highN: "boHighN", lowN: "boLowN" },
     lists, cur, sym => BO.quotes[sym], liveSecOf, null);
 }
+
+/* =========================================================
+   SETUPS — detected in snapshot.php when each 5-minute candle closes
+   signal: { s: symbol, d: "L"|"S", i: trigger candle, n: trend candles, e: entry, sl, tg,
+             a: "" | "9" | "15" | "9+15" (EMA touched = A+), np: Nifty % change, nok: Nifty agrees,
+             r: null | "T" | "S" (result), x: candle of result }
+   ========================================================= */
+const SETUP_FILTER = { aplusOnly: false, againstNifty: false, againstVwap: false, notBreakout: false };
+const SETUP_BREAKOUT_WINDOW = 6;   // must match snapshot.php
+
+// Was the stock on the Breakouts list (same direction) at the trigger? Uses the server flag,
+// or works it out from the saved breakout candles for days recorded before the flag existed.
+function inBreakouts(g, stocks) {
+  if (g.bo !== undefined) return g.bo;
+  const st = stocks && stocks[g.s];
+  if (!st) return null;
+  const arr = (g.d === "L" ? st.bh : st.bl) || [];
+  return arr.some(b => b > g.i - SETUP_BREAKOUT_WINDOW && b <= g.i);
+}
+function breakoutCount(g, stocks) {
+  if (g.boc !== undefined) return g.boc;
+  const st = stocks && stocks[g.s];
+  return st ? ((g.d === "L" ? st.bh : st.bl) || []).filter(b => b <= g.i).length : null;
+}
+
+function filterSignals(signals, upTo, secOf, stocks) {
+  return signals.filter(g => {
+    if (!SETUP_FILTER.notBreakout && inBreakouts(g, stocks) !== true) return false;
+    if (upTo != null && g.i > upTo) return false;
+    if (SETUP_FILTER.aplusOnly && !g.a) return false;
+    if (!SETUP_FILTER.againstNifty && !g.nok) return false;
+    if (!SETUP_FILTER.againstVwap && g.vok === false) return false;   // older signals without VWAP pass
+    const secs = secOf(g.s);
+    return !secs || secs.some(i => visible.has(i));
+  }).sort((a, b) => b.i - a.i || (b.a ? 1 : 0) - (a.a ? 1 : 0));
+}
+function setupRowHtml(g, upTo, secOf, names, stocks) {
+  const bo = inBreakouts(g, stocks), boc = breakoutCount(g, stocks);
+  const secs = secOf(g.s) || [];
+  const secIdx = secs.find(i => visible.has(i)) || secs[0];
+  const done = g.r && (upTo == null || g.x <= upTo);
+  const res = done
+    ? `<span class="res ${g.r}">${g.r === "T" ? "Target hit" : "SL hit"} · ${candleEnd(g.x)}</span>`
+    : `<span class="res O">Open</span>`;
+  const np = g.np;
+  const vwCell = g.vw == null ? "–" : `${fmt(g.vw)} ${g.vok ? "✓" : "✗"}`;
+  const boBadge = bo ? `<span class="bo-badge ${g.d}" title="On the Breakouts list at the trigger">${g.d === "L" ? "Breakout" : "Breakdown"}${boc > 1 ? " ×" + boc : ""}</span>` : "";
+  return `<tr class="${g.nok && g.vok !== false && bo === true ? "" : "against"}">
+    <td>${candleEnd(g.i)}</td>
+    <td class="sym">${g.s} ${boBadge}<div class="sec">${secIdx ? secLabel(secIdx, names) : ""}</div></td>
+    <td><span class="dir-pill ${g.d}">${g.d === "L" ? "Long" : "Short"} <small>${g.n}+2</small></span></td>
+    <td>${g.a ? `<span class="aplus">A+</span><span class="ema-note">${g.a} EMA</span>` : "–"}</td>
+    <td>${fmt(g.e)}</td>
+    <td>${fmt(g.sl)}</td>
+    <td>${fmt(g.tg)}</td>
+    <td class="${np > 0 ? "up-t" : np < 0 ? "down-t" : ""}">${np == null ? "–" : sign(np) + np.toFixed(2) + "%"} ${g.nok ? "✓" : "✗"}</td>
+    <td class="${g.vok === false ? "down-t" : ""}">${vwCell}</td>
+    <td>${res}</td>
+  </tr>`;
+}
+function fillSetups(tbodyId, list, upTo, secOf, names, emptyMsg, stocks) {
+  document.getElementById(tbodyId).innerHTML = list.length
+    ? list.map(g => setupRowHtml(g, upTo, secOf, names, stocks)).join("")
+    : `<tr><td class="empty" colspan="10">${emptyMsg}</td></tr>`;
+}
+function setupStats(list, upTo) {
+  let t = 0, sl = 0;
+  list.forEach(g => { if (g.r && (upTo == null || g.x <= upTo)) g.r === "T" ? t++ : sl++; });
+  return `${list.length} setup${list.length === 1 ? "" : "s"} · ${t} target hit · ${sl} SL hit · ${list.length - t - sl} open`;
+}
+function renderSetups() {
+  const secOf = sym => (BO.sec && BO.sec[sym]) || liveSecOf(sym);
+  const list = filterSignals(BO.signals || [], null, secOf);
+  document.getElementById("navSetups").textContent = LIVE.on ? String(list.length) : "";
+  if (!LIVE.on) {
+    document.getElementById("stSummary").textContent = "";
+    fillSetups("stRows", [], null, secOf, null, "Setups need live data. Open this page through XAMPP with snapshot.php in the same folder.");
+    return;
+  }
+  document.getElementById("stSummary").innerHTML = (BO.curIdx == null ? "Waiting for market data. " : "Today: " + setupStats(list, null) + ". ") +
+    `Scanning ${visible.size} of ${sectors.length} sectors. <a href="#sectors">Change sectors</a>`;
+  fillSetups("stRows", list, null, secOf, null,
+    "No setups yet today with these filters. Each one appears when its trigger candle closes.");
+}
+document.querySelectorAll(".f-aplus").forEach(cb => cb.addEventListener("change", () => {
+  SETUP_FILTER.aplusOnly = cb.checked;
+  document.querySelectorAll(".f-aplus").forEach(o => o.checked = cb.checked);
+  renderSetups(); if (R.data) renderReplay();
+}));
+document.querySelectorAll(".f-bo").forEach(cb => cb.addEventListener("change", () => {
+  SETUP_FILTER.notBreakout = cb.checked;
+  document.querySelectorAll(".f-bo").forEach(o => o.checked = cb.checked);
+  renderSetups(); if (R.data) renderReplay();
+}));
+document.querySelectorAll(".f-vwap").forEach(cb => cb.addEventListener("change", () => {
+  SETUP_FILTER.againstVwap = cb.checked;
+  document.querySelectorAll(".f-vwap").forEach(o => o.checked = cb.checked);
+  renderSetups(); if (R.data) renderReplay();
+}));
+document.querySelectorAll(".f-nifty").forEach(cb => cb.addEventListener("change", () => {
+  SETUP_FILTER.againstNifty = cb.checked;
+  document.querySelectorAll(".f-nifty").forEach(o => o.checked = cb.checked);
+  renderSetups(); if (R.data) renderReplay();
+}));
 
 /* =========================================================
    REPLAY — load a saved day and scrub through it candle by candle
@@ -1030,7 +1205,7 @@ async function loadDay(day) {
     const d = await res.json();
     R.day = day; R.data = d; R.pxIdx = {};
     Object.entries(d.stocks || {}).forEach(([sym, st]) => {
-      R.pxIdx[sym] = Object.keys(st.px || {}).map(Number).sort((a, b) => a - b);
+      R.pxIdx[sym] = Object.keys(st.k || st.px || {}).map(Number).sort((a, b) => a - b);
     });
     R.t = d.since != null ? d.since : 0;
     document.getElementById("rpSlider").value = R.t;
@@ -1048,6 +1223,7 @@ function rpQuote(sym, t) {
   let k = null;
   for (const i of keys) { if (i <= t) k = i; else break; }
   if (k == null) return null;
+  if (st.k) { const c = st.k[k]; return { ltp: c[3], p: c[5] }; }   // [o,h,l,c,v,p]
   const [ltp, p] = st.px[k];
   return { ltp, p };
 }
@@ -1056,8 +1232,17 @@ function rpSummaryAt(t) {
   Object.entries(R.data.stocks || {}).forEach(([sym, st]) => {
     const bh = (st.bh || []).filter(i => i <= t), bl = (st.bl || []).filter(i => i <= t);
     if (!bh.length && !bl.length) return;
-    out[sym] = [bh.length, bh.length ? bh[bh.length - 1] : -1, streakOf(bh, t),
-                bl.length, bl.length ? bl[bl.length - 1] : -1, streakOf(bl, t)];
+    let pbh = null, pbl = null;
+    if (st.k) {                                  // replay the tracker over candles closed by time t
+      const tr = newTracker();
+      (R.pxIdx[sym] || []).forEach(i => {
+        if (i > t) return;
+        const c = st.k[i];
+        closeCandle(tr, i, { o: c[0], h: c[1], l: c[2], c: c[3] });
+      });
+      pbh = tr.pbh ? 1 : 0; pbl = tr.pbl ? 1 : 0;
+    }
+    out[sym] = summaryRow(bh, st.bhl || [], bl, st.bll || [], pbh, pbl);
   });
   return out;
 }
@@ -1090,8 +1275,13 @@ function drawTimeline() {
   h += `<rect class="tl-cursor" x="${R.t - 0.5}" y="0" width="1" height="60"/>`;
   h += `<line class="tl-mid" x1="-0.5" x2="${LAST_CANDLE + 0.5}" y1="${mid}" y2="${mid}"/>`;
   for (let i = 0; i <= LAST_CANDLE; i++) {
-    if (hi[i]) { const bh = hi[i] / max * half; h += `<rect class="tl-up" x="${i - 0.35}" y="${mid - bh}" width="0.7" height="${bh}"><title>${candleStart(i)}: ${hi[i]} high breaks</title></rect>`; }
-    if (lo[i]) { const bh = lo[i] / max * half; h += `<rect class="tl-down" x="${i - 0.35}" y="${mid}" width="0.7" height="${bh}"><title>${candleStart(i)}: ${lo[i]} low breaks</title></rect>`; }
+    if (hi[i]) { const bh = hi[i] / max * half; h += `<rect class="tl-up" x="${i - 0.35}" y="${mid - bh}" width="0.7" height="${bh}"><title>${candleStart(i)}: ${hi[i]} breakouts</title></rect>`; }
+    if (lo[i]) { const bh = lo[i] / max * half; h += `<rect class="tl-down" x="${i - 0.35}" y="${mid}" width="0.7" height="${bh}"><title>${candleStart(i)}: ${lo[i]} breakdowns</title></rect>`; }
+  }
+  if (R.data) {   // setup markers along the top edge
+    filterSignals(R.data.signals || [], null, rpSecOf, R.data.stocks).forEach(g => {
+      h += `<circle class="tl-setup" cx="${g.i}" cy="${g.d === "L" ? 5 : 55}" r="${g.a ? 2.6 : 1.6}"><title>${candleEnd(g.i)} ${g.s} ${g.d === "L" ? "long" : "short"}${g.a ? " A+" : ""}</title></circle>`;
+    });
   }
   svg.innerHTML = h;
   const now = document.getElementById("rpNow");
@@ -1105,6 +1295,8 @@ function renderReplay() {
     `Scanning stocks in ${visible.size} of ${sectors.length} sectors. <a href="#sectors">Change sectors</a>`;
   if (!R.data) {
     fillLists({ high: "rpHigh", low: "rpLow", highN: "rpHighN", lowN: "rpLowN" }, { highs: [], lows: [] }, null, () => null, () => null, null);
+    document.getElementById("rpSetupsN").textContent = "";
+    fillSetups("rpSetups", [], null, () => null, null, "No day loaded.");
     return;
   }
   const t = R.t, d = R.data;
@@ -1116,6 +1308,10 @@ function renderReplay() {
   const lists = buildLists(rpSummaryAt(t), t, rpSecOf);
   fillLists({ high: "rpHigh", low: "rpLow", highN: "rpHighN", lowN: "rpLowN" },
     lists, t, sym => rpQuote(sym, t), rpSecOf, d.names);
+  const sigs = filterSignals(d.signals || [], t, rpSecOf, d.stocks);
+  document.getElementById("rpSetupsN").textContent = d.signals ? setupStats(sigs, t) : "";
+  fillSetups("rpSetups", sigs, t, rpSecOf, d.names,
+    d.signals ? "No setups up to this time with these filters." : "This day was recorded before setup detection was added.", d.stocks);
 }
 function rpSet(t) {
   R.t = Math.max(0, Math.min(LAST_CANDLE, t));
@@ -1187,6 +1383,8 @@ function applyLiveData(d) {
   BO.summary = d.breaks || {};
   BO.curIdx = d.candle != null ? d.candle : null;
   BO.since = d.since != null ? d.since : null;
+  BO.signals = d.signals || [];
+  BO.sec = d.sec || null;
   BO.quotes = {};
   Object.values(d.stocks || {}).forEach(rows => rows.forEach(r => {
     BO.quotes[r.symbol] = { ltp: num(r.lastPrice), p: num(r.pChange) };
@@ -1199,6 +1397,8 @@ function applyLiveData(d) {
   renderHeader();
   renderChart();
   renderBreakouts();
+  renderSetups();
+  if (R.data) renderReplay();
   if (selected) selectSector(selected); else { renderStrip(); renderTable(); }
 }
 
@@ -1245,7 +1445,7 @@ async function startLive() {
 /* =========================================================
    PAGES (hash routing: #sectors, #breakouts)
    ========================================================= */
-const VIEWS = { sectors: "Sector overview", breakouts: "Breakouts", replay: "Replay" };
+const VIEWS = { sectors: "Sector overview", breakouts: "Breakouts", setups: "Setups", replay: "Replay" };
 function route() {
   const key = location.hash.slice(1);
   showView(VIEWS[key] ? key : "sectors");
@@ -1280,6 +1480,7 @@ selectSector(selected);
 simReset();
 renderBreakouts();
 simPlay();
+renderSetups();
 route();
 startLive();
 </script>
