@@ -15,7 +15,7 @@ const BREAK_BUFFER = 0.0005;     // new day high/low must beat the old one by 0.
 const SOURCES = [
   'Sectoral Indices' => [
     'NIFTY AUTO', 'NIFTY PHARMA', 'NIFTY BANK', 'NIFTY PSU BANK', 'NIFTY METAL',
-    'NIFTY CEMENT', 'NIFTY FMCG', 'NIFTY REALTY', 'NIFTY IT', 'NIFTY OIL AND GAS'
+    'NIFTY CEMENT', 'NIFTY FMCG', 'NIFTY REALTY', 'NIFTY IT', 'NIFTY OIL AND GAS', 'NIFTY ENERGY'
   ],
   'Broad Market Indices' => ['NIFTY 50'],
   'Thematic Indices'     => ['NIFTY ENERGY'],
