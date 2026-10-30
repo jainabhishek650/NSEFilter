@@ -253,7 +253,7 @@ function finalize_candle(&$state, $sym, &$st, $ci) {
     'a' => implode('+', $touch),                          // "", "9", "15" or "9+15"
     'np' => $np, 'nok' => $np !== null && ($dir === 1 ? $np > 0 : $np < 0),
     'bo' => count($recent) > 0, 'boc' => $boCount,         // in Breakouts list / breakouts so far today
-    'vw' => $vw, 'vok' => $vw !== null && ($dir === 1 ? $entry > $vw : $entry < $vw),   // close on the right side of VWAP
+    'vw' => $vw, 'vok' => $vw === null ? null : ($dir === 1 ? $entry > $vw : $entry < $vw),   // null = VWAP not available   // close on the right side of VWAP
     'r' => null, 'x' => null,                             // result: 'T' target / 'S' stop, x = candle
   ];
 }
@@ -275,7 +275,7 @@ function previous_emas($dir, $day) {
 function update_breaks($dir, $stocks, $sectors) {
   $rows = []; $member = [];
   foreach ($stocks as $index => $list) if (is_array($list)) foreach ($list as $r) if (isset($r['symbol'])) {
-    $rows[$r['symbol']] = $r;
+    if (!isset($rows[$r['symbol']]) || (empty($rows[$r['symbol']]['VWAP']) && !empty($r['VWAP']))) $rows[$r['symbol']] = $r;
     $member[$r['symbol']][] = $index;
   }
   $day = null; $nowIdx = null;
@@ -367,13 +367,13 @@ function update_breaks($dir, $stocks, $sectors) {
 
 function refresh_cookies($cookieFile) { nse_get(BASE, $cookieFile); }
 
-function get_json($url, $cookieFile) {
+function get_json($url, $cookieFile, $raw = false) {
   $last = '';
   for ($attempt = 1; $attempt <= 3; $attempt++) {
     [$code, $body, $err] = nse_get($url, $cookieFile);
     if ($code === 200) {
       $json = json_decode($body, true);
-      if (is_array($json)) return isset($json['data']) ? $json['data'] : $json;
+      if (is_array($json)) return (!$raw && isset($json['data'])) ? $json['data'] : $json;
       $last = 'NSE returned non-JSON';
     } else {
       $last = $err ?: "HTTP $code";
@@ -382,6 +382,39 @@ function get_json($url, $cookieFile) {
     sleep(1);
   }
   throw new Exception($last);
+}
+
+// Fallback for indices missing from the heatmap: the data behind nseindia.com/index-tracker/<INDEX>.
+// Returns [sectorRow, stockRows] in the same shape as the heatmap endpoints.
+function tracker_index($name, $cookieFile) {
+  $j = get_json(BASE . '/api/equity-stockIndices?index=' . rawurlencode($name), $cookieFile, true);
+  $m = $j['metadata'] ?? [];
+  $rows = $j['data'] ?? [];
+  $idxRow = null; $stocks = [];
+  foreach ($rows as $r) {
+    if (($r['symbol'] ?? '') === $name || ($r['priority'] ?? 0) == 1) { $idxRow = $r; continue; }
+    $g = fn($k, $d = 0) => $r[$k] ?? $d;
+    $row = [
+      'symbol' => $r['symbol'] ?? '', 'lastPrice' => (string)$g('lastPrice'), 'change' => (string)$g('change'),
+      'pChange' => (string)$g('pChange'), 'high' => (string)$g('dayHigh', $g('high')), 'low' => (string)$g('dayLow', $g('low')),
+      'totalTradedVolume' => (string)$g('totalTradedVolume'), 'quantityTraded' => (string)$g('totalTradedValue'),
+      'lastUpdatedTime' => $r['lastUpdateTime'] ?? ($r['lastUpdatedTime'] ?? ($j['timestamp'] ?? '')),
+      'series' => $r['series'] ?? 'EQ', 'source' => 'index-tracker',
+    ];
+    foreach (['VWAP', 'vwap', 'averagePrice'] as $vk) if (!empty($r[$vk])) { $row['VWAP'] = (string)$r[$vk]; break; }
+    if ($row['symbol'] !== '') $stocks[] = $row;
+  }
+  $cur = $m['last'] ?? ($idxRow['lastPrice'] ?? 0);
+  $sector = [
+    'index' => $name, 'indexLongName' => ucwords(strtolower($name)),
+    'current' => $cur, 'open' => $m['open'] ?? ($idxRow['open'] ?? 0), 'high' => $m['high'] ?? ($idxRow['dayHigh'] ?? 0),
+    'low' => $m['low'] ?? ($idxRow['dayLow'] ?? 0), 'close' => $m['previousClose'] ?? ($idxRow['previousClose'] ?? 0),
+    'pChange' => $m['percChange'] ?? ($idxRow['pChange'] ?? 0),
+    'yrHigh' => $m['yearHigh'] ?? ($idxRow['yearHigh'] ?? 0), 'yrLow' => $m['yearLow'] ?? ($idxRow['yearLow'] ?? 0),
+    'timeStamp' => $j['timestamp'] ?? ($m['timeVal'] ?? ''), 'type' => 'Index tracker',
+  ];
+  if (!$stocks) throw new Exception('index tracker returned no stocks');
+  return [$sector, $stocks];
 }
 
 try {
@@ -412,7 +445,14 @@ try {
     foreach (array_merge([$type], array_values(array_diff($ALL_TYPES, [$type]))) as $t) {
       foreach ($getList($t) as $s) if (($s['index'] ?? '') === $name) { $s['type'] = $t; $where[$name] = $s; break 2; }
     }
-    if (!isset($where[$name])) $errors[] = "$name not found in any NSE index group";
+    if (!isset($where[$name])) {
+      try {
+        [$secRow, $rowsT] = tracker_index($name, $cookieFile);
+        $sectors[] = $secRow; $stocks[$name] = $rowsT;
+        $errors[] = "note: $name is not in NSE's heatmap; loaded from the index tracker instead (works anyway)";
+      } catch (Exception $e) { $errors[] = "$name not found in any NSE index group, index tracker failed too: " . $e->getMessage(); }
+      usleep(GAP_MICROSECONDS);
+    }
     elseif ($where[$name]['type'] !== $type) $errors[] = "note: $name is under '{$where[$name]['type']}', not '$type' (works anyway)";
   }
   foreach ($where as $name => $s) {
