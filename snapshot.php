@@ -15,7 +15,7 @@ const BREAK_BUFFER = 0.0005;     // new day high/low must beat the old one by 0.
 const SOURCES = [
   'Sectoral Indices' => [
     'NIFTY AUTO', 'NIFTY PHARMA', 'NIFTY BANK', 'NIFTY PSU BANK', 'NIFTY METAL',
-    'NIFTY CEMENT', 'NIFTY FMCG', 'NIFTY REALTY', 'NIFTY IT', 'NIFTY OIL AND GAS', 'NIFTY ENERGY'
+    'NIFTY CEMENT', 'NIFTY FMCG', 'NIFTY REALTY', 'NIFTY IT', 'NIFTY OIL AND GAS'
   ],
   'Broad Market Indices' => ['NIFTY 50'],
   'Thematic Indices'     => ['NIFTY ENERGY'],
@@ -245,6 +245,13 @@ function finalize_candle(&$state, $sym, &$st, $ci) {
   $recent = array_values(array_filter($barr, fn($b) => $b > $ci - SETUP_BREAKOUT_WINDOW && $b <= $ci));
   $boCount = count(array_filter($barr, fn($b) => $b <= $ci));
 
+  $oiNow = null;
+  foreach (($state['oi'][$sym] ?? []) as $i => $v) if ((int)$i <= $ci) $oiNow = $v;
+  $bu = build_up($K[5] ?? null, $oiNow ? $oiNow[1] : null);
+  [$bullOB, $bearOB] = order_blocks($st['k']);
+  $zone = $dir === 1 ? $bullOB : $bearOB;
+  $atob = $zone !== null && $zone[2] < $ci && $K[2] <= $zone[1] && $K[1] >= $zone[0];
+
   $np = nifty_at($state, $ci);
   $vw = (isset($K[6]) && $K[6] > 0) ? $K[6] : null;      // day VWAP at the trigger candle close
   $state['signals'][] = [
@@ -253,6 +260,7 @@ function finalize_candle(&$state, $sym, &$st, $ci) {
     'a' => implode('+', $touch),                          // "", "9", "15" or "9+15"
     'np' => $np, 'nok' => $np !== null && ($dir === 1 ? $np > 0 : $np < 0),
     'bo' => count($recent) > 0, 'boc' => $boCount,         // in Breakouts list / breakouts so far today
+    'bu' => $bu, 'atob' => $atob,                           // OI build-up at the trigger / trigger touched an order block
     'vw' => $vw, 'vok' => $vw === null ? null : ($dir === 1 ? $entry > $vw : $entry < $vw),   // null = VWAP not available   // close on the right side of VWAP
     'r' => null, 'x' => null,                             // result: 'T' target / 'S' stop, x = candle
   ];
@@ -272,12 +280,56 @@ function previous_emas($dir, $day) {
   return $out;
 }
 
-function update_breaks($dir, $stocks, $sectors) {
+// ---------- Smart money: OI build-up + order blocks ----------
+const OI_MIN_PCT = 1.0;          // OI change below this (abs %) = no meaningful build-up
+const OB_IMPULSE_ATR = 2.0;      // impulse after the order block must be >= 2 x average candle range...
+const OB_IMPULSE_MIN_PCT = 0.3;  // ...and >= 0.3% of price
+const INDEX_SYMBOLS = ['NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCPNIFTY', 'NIFTYNXT50', 'NIFTYFPI'];
+
+// price % vs OI % -> LB long build-up, SB short build-up, SC short covering, LU long unwinding
+function build_up($p, $oip) {
+  if ($p === null || $oip === null || abs($oip) < OI_MIN_PCT || $p == 0) return null;
+  if ($p > 0) return $oip > 0 ? 'LB' : 'SC';
+  return $oip > 0 ? 'SB' : 'LU';
+}
+
+// Latest still-valid bullish and bearish order block from 5-minute candles k (idx => [o,h,l,c,...]).
+// Bullish OB = last red candle before an impulse of 2+ green candles; broken once a later candle closes below it.
+function order_blocks($k) {
+  $keys = array_map('intval', array_keys($k ?? [])); sort($keys);
+  $C = []; foreach ($keys as $i) { $c = $k[(string)$i]; $C[] = ['i' => $i, 'o' => $c[0], 'h' => $c[1], 'l' => $c[2], 'c' => $c[3]]; }
+  $n = count($C); if ($n < 4) return [null, null];
+  $atr = array_sum(array_map(fn($x) => $x['h'] - $x['l'], $C)) / $n;
+  $out = [null, null];
+  foreach ([1, -1] as $side) {
+    for ($j = $n - 3; $j >= 0; $j--) {                       // newest first
+      $ob = $C[$j]; $a = $C[$j + 1]; $b = $C[$j + 2];
+      $obColor = $ob['c'] > $ob['o'] ? 1 : ($ob['c'] < $ob['o'] ? -1 : 0);
+      if ($obColor !== -$side) continue;
+      if (!($side === 1 ? ($a['c'] > $a['o'] && $b['c'] > $b['o']) : ($a['c'] < $a['o'] && $b['c'] < $b['o']))) continue;
+      if ($a['i'] !== $ob['i'] + 1 || $b['i'] !== $ob['i'] + 2) continue;   // no gaps
+      $move = $side === 1 ? $b['c'] - $a['o'] : $a['o'] - $b['c'];
+      if ($move < max(OB_IMPULSE_ATR * $atr, $ob['c'] * OB_IMPULSE_MIN_PCT / 100)) continue;
+      $lo = $ob['l']; $hi = $ob['h']; $broken = false; $retest = false;
+      for ($m = $j + 3; $m < $n; $m++) {
+        if ($side === 1 ? $C[$m]['c'] < $lo : $C[$m]['c'] > $hi) { $broken = true; break; }
+        if ($side === 1 ? $C[$m]['l'] <= $hi : $C[$m]['h'] >= $lo) $retest = true;
+      }
+      if ($broken) continue;
+      $out[$side === 1 ? 0 : 1] = [round($lo, 2), round($hi, 2), $ob['i'], $retest];
+      break;
+    }
+  }
+  return $out;
+}
+
+function update_breaks($dir, $stocks, $sectors, $extraRows = [], $oiRows = []) {
   $rows = []; $member = [];
   foreach ($stocks as $index => $list) if (is_array($list)) foreach ($list as $r) if (isset($r['symbol'])) {
     if (!isset($rows[$r['symbol']]) || (empty($rows[$r['symbol']]['VWAP']) && !empty($r['VWAP']))) $rows[$r['symbol']] = $r;
     $member[$r['symbol']][] = $index;
   }
+  foreach ($extraRows as $r) if (isset($r['symbol']) && !isset($rows[$r['symbol']])) $rows[$r['symbol']] = $r;
   $day = null; $nowIdx = null;
   foreach ($rows as $r) {
     [$d, $i] = parse_time($r['lastUpdatedTime'] ?? '');
@@ -298,6 +350,9 @@ function update_breaks($dir, $stocks, $sectors) {
   }
   foreach ($member as $sym => $list) {
     $state['sec'][$sym] = array_values(array_unique(array_merge($state['sec'][$sym] ?? [], $list)));
+  }
+  if ($nowIdx !== null) foreach ($oiRows as $o) if (isset($o['symbol'])) {
+    $state['oi'][$o['symbol']][(string)$nowIdx] = [(float)($o['latestOI'] ?? 0), (float)($o['avgInOI'] ?? 0), (float)($o['changeInOI'] ?? 0)];
   }
 
   foreach ($rows as $sym => $r) {
@@ -362,7 +417,22 @@ function update_breaks($dir, $stocks, $sectors) {
                   count($bl), $bl ? end($bl) : -1, $bll ? end($bll) : null,
                   empty($st['pbh']) ? 0 : 1, empty($st['pbl']) ? 0 : 1];
   }
-  return ['candle' => $cur, 'since' => $state['since'], 'breaks' => (object)$sum, 'signals' => $state['signals'], 'sec' => $state['sec'] ?? []];
+  // smart money summary: [price%, OI%, OI change, OI% change over last 30 min, ltp, vwap, bullOB, bearOB, build-up]
+  $smart = [];
+  foreach (($state['oi'] ?? []) as $sym => $hist) {
+    if (in_array($sym, INDEX_SYMBOLS, true) || !isset($rows[$sym])) continue;
+    $keysOI = array_map('intval', array_keys($hist)); sort($keysOI);
+    $last = $hist[(string)end($keysOI)];
+    $old = null; foreach ($keysOI as $i) if ($i <= $cur - 6) $old = $hist[(string)$i];
+    $oi30 = ($old && $old[0] > 0) ? round(($last[0] - $old[0]) / $old[0] * 100, 2) : null;
+    $r = $rows[$sym];
+    $p = isset($r['pChange']) ? (float)$r['pChange'] : null;
+    [$bull, $bear] = order_blocks($state['stocks'][$sym]['k'] ?? []);
+    $smart[$sym] = [$p, $last[1], $last[2], $oi30, (float)($r['lastPrice'] ?? 0), !empty($r['VWAP']) ? (float)$r['VWAP'] : null,
+                    $bull, $bear, build_up($p, $last[1])];
+  }
+  return ['candle' => $cur, 'since' => $state['since'], 'breaks' => (object)$sum, 'signals' => $state['signals'], 'sec' => $state['sec'] ?? [],
+          'smart' => (object)$smart];
 }
 
 function refresh_cookies($cookieFile) { nse_get(BASE, $cookieFile); }
@@ -463,11 +533,22 @@ try {
   }
   if (!$sectors) throw new Exception('No index data. ' . implode('; ', $errors));
 
-  $bo = update_breaks($dir, $stocks, $sectors);
+  // Smart money inputs: OI spurts for all F&O underlyings + prices for every F&O stock
+  $oiRows = []; $foRows = []; $oiTime = null;
+  try {
+    $oj = get_json(BASE . '/api/live-analysis-oi-spurts-underlyings', $cookieFile, true);
+    $oiRows = $oj['data'] ?? []; $oiTime = $oj['timestamp'] ?? null;
+  } catch (Exception $e) { $errors[] = 'OI spurts: ' . $e->getMessage(); }
+  usleep(GAP_MICROSECONDS);
+  try { [, $foRows] = tracker_index('SECURITIES IN F&O', $cookieFile); }
+  catch (Exception $e) { $errors[] = 'F&O price list: ' . $e->getMessage(); }
+
+  $bo = update_breaks($dir, $stocks, $sectors, $foRows, $oiRows);
   $out = json_encode([
     'fetchedAt' => gmdate('c'), 'sectors' => $sectors, 'stocks' => (object)$stocks, 'errors' => $errors,
     'candle' => $bo['candle'] ?? null, 'since' => $bo['since'] ?? null, 'breaks' => $bo['breaks'] ?? (object)[],
     'signals' => $bo['signals'] ?? [],
+    'smart' => $bo['smart'] ?? (object)[], 'oiTime' => $oiTime,
   ]);
   file_put_contents($cacheFile, $out);
   echo $out;
