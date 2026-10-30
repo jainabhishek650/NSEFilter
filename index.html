@@ -100,9 +100,10 @@
     .wrap { width: 100%; max-width: 100%; margin: 0; padding: 14px 10px 32px; }
     .brand { display: none; }
     .side { padding: 6px 8px; }
-    .nav { width: 100%; justify-content: space-between; gap: 2px; }
-    .nav-item { padding: 8px 8px; font-size: .88rem; gap: 6px; }
-    .nav-item svg { width: 16px; height: 16px; }
+    .nav { width: 100%; justify-content: space-between; gap: 0; overflow: visible; }
+    .nav-item { flex: 1 1 0; min-width: 0; flex-direction: column; gap: 2px; padding: 6px 2px; font-size: .7rem; text-align: center; }
+    .nav-item svg { width: 18px; height: 18px; }
+    .m-hide { display: none; }
     header.top { margin-bottom: 10px; }
     .bo-head, .chart-head, .stocks-head { padding-left: 12px; padding-right: 12px; }
     .bo-sub, .scope { padding-left: 12px; padding-right: 12px; }
@@ -268,6 +269,13 @@
   .dir-pill.S { background: var(--down-soft); color: var(--down); }
   .dir-pill small { font-weight: 500; opacity: .8; }
   .setups-table th:nth-child(2), .setups-table td:nth-child(2) { text-align: left; }
+  .score { display: inline-block; min-width: 2.4em; text-align: center; font-weight: 700; padding: 1px 6px; border-radius: 6px; }
+  .score.hi { background: var(--select); color: var(--panel); }
+  .score.mid { background: var(--panel-2); border: 1px solid var(--line); }
+  .score.lo { color: var(--muted); }
+  .ob-note { display: block; font-size: .72rem; color: var(--muted); }
+  .ob-at { font-weight: 700; color: var(--select); }
+  .bu-badge { display: inline-block; font-size: .7rem; font-weight: 600; padding: 0 6px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); margin-left: 4px; vertical-align: 1px; }
   .bo-badge { display: inline-block; font-size: .7rem; font-weight: 600; padding: 0 6px; border-radius: 999px; margin-left: 4px; vertical-align: 1px; }
   .bo-badge.L { color: var(--up); border: 1px solid var(--up); }
   .bo-badge.S { color: var(--down); border: 1px solid var(--down); }
@@ -340,6 +348,10 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
       Setups
       <span class="nav-count"><span id="navSetups"></span></span>
+    </a>
+    <a class="nav-item" href="#smart" data-view="smart">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18"/><rect x="5" y="11" width="3" height="6"/><rect x="10.5" y="7" width="3" height="10"/><rect x="16" y="4" width="3" height="13"/></svg>
+      <span>Smart<span class="m-hide"> Money</span></span>
     </a>
     <a class="nav-item" href="#replay" data-view="replay">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3 2"/></svg>
@@ -451,6 +463,36 @@
           <thead><tr><th>Time</th><th>Symbol</th><th>Side</th><th>Grade</th><th>Entry</th><th>SL</th><th>Target (1:3)</th><th>Nifty 50</th><th>VWAP</th><th>Result</th></tr></thead>
           <tbody id="stRows"></tbody>
         </table></div>
+  </section>
+  </div>
+
+  <div class="view" id="view-smart" hidden>
+  <section class="panel breakouts" aria-label="Smart money">
+    <div class="bo-head">
+      <h2>Where positions are being built</h2>
+      <div class="bo-controls setup-filters">
+        <label><input type="checkbox" id="smSectors"> Only ticked sectors</label>
+        <label><input type="checkbox" id="smAtOB"> At order block only</label>
+      </div>
+    </div>
+    <div class="bo-sub">F&amp;O stocks ranked by fresh positions: <b>long build-up</b> (price ↑, OI ↑) and <b>short build-up</b> (price ↓, OI ↑). Score 0–100: OI % change 40, price move 25, VWAP side 15, OI still rising in the last 30 min 10, sector agreeing 10. Order block = last opposite candle before a strong 5-minute impulse, valid until price closes through it. These are signs of positioning, not proof of who is trading.</div>
+    <p class="scope" id="smSummary"></p>
+    <div class="bo-grid">
+      <div class="bo-col">
+        <h3><span class="up-t">Long build-up</span><span class="n" id="smLongN"></span></h3>
+        <div class="table-scroll"><table class="cards-m sm-table">
+          <thead><tr><th>Symbol</th><th>Score</th><th>Price</th><th>OI change</th><th>OI last 30 min</th><th>VWAP</th><th>Order block</th></tr></thead>
+          <tbody id="smLong"></tbody>
+        </table></div>
+      </div>
+      <div class="bo-col">
+        <h3><span class="down-t">Short build-up</span><span class="n" id="smShortN"></span></h3>
+        <div class="table-scroll"><table class="cards-m sm-table">
+          <thead><tr><th>Symbol</th><th>Score</th><th>Price</th><th>OI change</th><th>OI last 30 min</th><th>VWAP</th><th>Order block</th></tr></thead>
+          <tbody id="smShort"></tbody>
+        </table></div>
+      </div>
+    </div>
   </section>
   </div>
 
@@ -705,6 +747,7 @@ function applyFilter() {
   renderChart();
   renderBreakouts();
   renderSetups();
+  renderSmart();
   if (R.data) renderReplay();
   const list = shown();
   if (!list.length) { selected = null; renderStrip(); renderTable(); return; }
@@ -1115,7 +1158,7 @@ function filterSignals(signals, upTo, secOf, stocks) {
     if (!SETUP_FILTER.againstNifty && !g.nok) return false;
     if (!SETUP_FILTER.againstVwap && g.vok === false) return false;   // older signals without VWAP pass
     const secs = secOf(g.s);
-    return !secs || secs.some(i => visible.has(i));
+    return !!secs && secs.some(i => visible.has(i));
   }).sort((a, b) => b.i - a.i || (b.a ? 1 : 0) - (a.a ? 1 : 0));
 }
 function setupRowHtml(g, upTo, secOf, names, stocks) {
@@ -1128,10 +1171,12 @@ function setupRowHtml(g, upTo, secOf, names, stocks) {
     : `<span class="res O">Open</span>`;
   const np = g.np;
   const vwCell = g.vw == null ? "–" : `${fmt(g.vw)} ${g.vok ? "✓" : "✗"}`;
+  const buBadge = (g.bu ? `<span class="bu-badge" title="OI build-up at the trigger">${BU_LABEL[g.bu]}</span>` : "") +
+    (g.atob ? `<span class="bu-badge ob-at" title="Trigger candle touched an order block">At OB</span>` : "");
   const boBadge = bo ? `<span class="bo-badge ${g.d}" title="On the Breakouts list at the trigger">${g.d === "L" ? "Breakout" : "Breakdown"}${boc > 1 ? " ×" + boc : ""}</span>` : "";
   return `<tr class="${g.nok && g.vok !== false && bo === true ? "" : "against"}">
     <td data-label="Time">${candleEnd(g.i)}</td>
-    <td class="sym">${g.s} ${boBadge}<div class="sec">${secIdx ? secLabel(secIdx, names) : ""}</div></td>
+    <td class="sym">${g.s} ${boBadge}${buBadge}<div class="sec">${secIdx ? secLabel(secIdx, names) : ""}</div></td>
     <td data-label="Side"><span class="dir-pill ${g.d}">${g.d === "L" ? "Long" : "Short"} <small>${g.n}+2</small></span></td>
     <td data-label="Grade">${g.a ? `<span class="aplus">A+</span><span class="ema-note">${g.a} EMA</span>` : "–"}</td>
     <td data-label="Entry">${fmt(g.e)}</td>
@@ -1186,6 +1231,79 @@ document.querySelectorAll(".f-nifty").forEach(cb => cb.addEventListener("change"
   document.querySelectorAll(".f-nifty").forEach(o => o.checked = cb.checked);
   renderSetups(); if (R.data) renderReplay();
 }));
+
+/* =========================================================
+   SMART MONEY — OI build-up + order blocks (computed in snapshot.php)
+   smart[sym] = [price%, OI%, OI change, OI% last 30 min, ltp, vwap, bullOB, bearOB, buildUp]
+   OB = [low, high, candleIdx, retested]
+   ========================================================= */
+const BU_LABEL = { LB: "Long build-up", SB: "Short build-up", SC: "Short covering", LU: "Long unwinding" };
+const SM = { sectorsOnly: false, atObOnly: false };
+
+function pctRank(values) {               // value -> 0..1 percentile within the list
+  const sorted = [...values].sort((a, b) => a - b);
+  return v => sorted.length < 2 ? 1 : sorted.filter(x => x <= v).length / sorted.length;
+}
+function smartRows(smart, side) {         // side: "LB" or "SB"
+  const dir = side === "LB" ? 1 : -1;
+  const secOf = sym => (BO.sec && BO.sec[sym]) || liveSecOf(sym) || null;
+  const list = Object.entries(smart || {}).filter(([sym, e]) => e[8] === side).map(([sym, e]) => {
+    const [p, oip, dOI, oi30, ltp, vw, bull, bear] = e;
+    const ob = dir === 1 ? bull : bear;
+    const secs = secOf(sym);
+    const sec = secs ? sectors.find(x => x.index === secs.find(i => visible.has(i)) || x.index === secs[0]) : null;
+    const atOb = !!ob && ltp >= ob[0] && ltp <= ob[1];
+    return { sym, p, oip, dOI, oi30, ltp, vw, ob, atOb, secs, sec };
+  }).filter(r => (!SM.sectorsOnly || (r.secs && r.secs.some(i => visible.has(i)))) && (!SM.atObOnly || r.atOb));
+  const rOI = pctRank(list.map(r => Math.abs(r.oip))), rP = pctRank(list.map(r => Math.abs(r.p)));
+  list.forEach(r => {
+    const vwapOk = r.vw != null && (dir === 1 ? r.ltp > r.vw : r.ltp < r.vw);
+    const oiRising = r.oi30 != null && r.oi30 > 0;
+    const secOk = r.sec && (dir === 1 ? r.sec.pChange > 0 : r.sec.pChange < 0);
+    r.vwapOk = r.vw == null ? null : vwapOk;
+    r.score = Math.round(40 * rOI(Math.abs(r.oip)) + 25 * rP(Math.abs(r.p)) + (vwapOk ? 15 : 0) + (oiRising ? 10 : 0) + (secOk ? 10 : 0));
+  });
+  return list.sort((a, b) => b.score - a.score || Math.abs(b.oip) - Math.abs(a.oip));
+}
+function smartRowHtml(r, side) {
+  const scCls = r.score >= 70 ? "hi" : r.score >= 45 ? "mid" : "lo";
+  const obCell = !r.ob ? "–"
+    : r.atOb ? `<span class="ob-at">At OB</span><span class="ob-note">${fmt(r.ob[0])}–${fmt(r.ob[1])} · ${candleEnd(r.ob[2])}</span>`
+    : `${fmt(r.ob[0])}–${fmt(r.ob[1])}<span class="ob-note">${candleEnd(r.ob[2])} · ${Math.abs((r.ltp - (side === "LB" ? r.ob[1] : r.ob[0])) / r.ltp * 100).toFixed(2)}% away${r.ob[3] ? " · retested" : ""}</span>`;
+  const setupsToday = (BO.signals || []).filter(g => g.s === r.sym && g.d === (side === "LB" ? "L" : "S")).length;
+  return `<tr>
+    <td class="sym">${r.sym}${setupsToday ? ` <span class="bu-badge" title="Setups today in this direction">${setupsToday} setup${setupsToday > 1 ? "s" : ""}</span>` : ""}<div class="sec">${r.sec ? shortName(r.sec) : "F&amp;O"}</div></td>
+    <td data-label="Score"><span class="score ${scCls}">${r.score}</span></td>
+    <td data-label="Price"><span class="pill ${r.p >= 0 ? "up" : "down"}">${sign(r.p)}${r.p.toFixed(2)}%</span><span class="ob-note">${fmt(r.ltp)}</span></td>
+    <td data-label="OI change" class="${r.oip >= 0 ? "up-t" : "down-t"}">${sign(r.oip)}${r.oip.toFixed(2)}%<span class="ob-note">${r.dOI >= 0 ? "+" : ""}${Math.round(r.dOI).toLocaleString("en-IN")}</span></td>
+    <td data-label="OI last 30 min">${r.oi30 == null ? "–" : `<span class="${r.oi30 > 0 ? "up-t" : r.oi30 < 0 ? "down-t" : ""}">${sign(r.oi30)}${r.oi30.toFixed(2)}%</span>`}</td>
+    <td data-label="VWAP">${r.vwapOk == null ? "–" : (r.vwapOk ? "✓ " : "✗ ") + fmt(r.vw)}</td>
+    <td data-label="Order block">${obCell}</td>
+  </tr>`;
+}
+function renderSmart() {
+  const smart = BO.smart || {};
+  const all = Object.values(smart);
+  const count = code => all.filter(e => e[8] === code).length;
+  if (!LIVE.on || !all.length) {
+    document.getElementById("smSummary").textContent = LIVE.on ? "Waiting for OI data from NSE…" : "Smart Money needs live data. Open this page through XAMPP with snapshot.php in the same folder.";
+    ["smLong", "smShort"].forEach(id => document.getElementById(id).innerHTML = `<tr><td class="empty" colspan="7">No data.</td></tr>`);
+    document.getElementById("smLongN").textContent = document.getElementById("smShortN").textContent = "";
+    return;
+  }
+  document.getElementById("smSummary").textContent =
+    `OI as of ${BO.oiTime || "–"} · ${all.length} F&O stocks: ${count("LB")} long build-up · ${count("SB")} short build-up · ` +
+    `${count("SC")} short covering · ${count("LU")} long unwinding (OI change under ±1% counts as none).`;
+  [["LB", "smLong", "smLongN"], ["SB", "smShort", "smShortN"]].forEach(([side, tb, n]) => {
+    const rows = smartRows(smart, side);
+    document.getElementById(n).textContent = rows.length > 15 ? `Top 15 of ${rows.length}` : `${rows.length} stocks`;
+    document.getElementById(tb).innerHTML = rows.length
+      ? rows.slice(0, 15).map(r => smartRowHtml(r, side)).join("")
+      : `<tr><td class="empty" colspan="7">No stocks with these filters.</td></tr>`;
+  });
+}
+document.getElementById("smSectors").addEventListener("change", e => { SM.sectorsOnly = e.target.checked; renderSmart(); });
+document.getElementById("smAtOB").addEventListener("change", e => { SM.atObOnly = e.target.checked; renderSmart(); });
 
 /* =========================================================
    REPLAY — load a saved day and scrub through it candle by candle
@@ -1376,7 +1494,7 @@ function selectSector(idx) {
    LIVE MODE — used when the page is opened through server.js
    (http://localhost:3000). Falls back to embedded data + replay otherwise.
    ========================================================= */
-const LIVE = { on: false, polls: 0, time: "", INTERVAL: 60000, timer: null, error: "",
+const LIVE = { on: false, polls: 0, time: "", INTERVAL: 60000, timer: null, error: "", known: new Set(),
   URL: "snapshot.php" };  // works with XAMPP (PHP) and with server.js
 const NUM_FIELDS = ["close","current","high","low","open","pChange","yrHigh","yrLow"];
 
@@ -1396,6 +1514,8 @@ function applyLiveData(d) {
   for (const k in STOCK_DATA) delete STOCK_DATA[k];
   Object.assign(STOCK_DATA, d.stocks || {});
   if (firstLoad) { visible.clear(); sectors.forEach(sec => visible.add(sec.index)); }
+  else sectors.forEach(sec => { if (!LIVE.known.has(sec.index)) visible.add(sec.index); });   // new sector appeared: tick it
+  sectors.forEach(sec => LIVE.known.add(sec.index));
   buildUniverse();
 
   // breakout counts come from snapshot.php (kept for the whole day on the server)
@@ -1403,6 +1523,8 @@ function applyLiveData(d) {
   BO.curIdx = d.candle != null ? d.candle : null;
   BO.since = d.since != null ? d.since : null;
   BO.signals = d.signals || [];
+  BO.smart = d.smart || {};
+  BO.oiTime = d.oiTime || null;
   BO.sec = d.sec || null;
   BO.quotes = {};
   Object.values(d.stocks || {}).forEach(rows => rows.forEach(r => {
@@ -1417,6 +1539,7 @@ function applyLiveData(d) {
   renderChart();
   renderBreakouts();
   renderSetups();
+  renderSmart();
   if (R.data) renderReplay();
   if (selected) selectSector(selected); else { renderStrip(); renderTable(); }
 }
@@ -1464,7 +1587,7 @@ async function startLive() {
 /* =========================================================
    PAGES (hash routing: #sectors, #breakouts)
    ========================================================= */
-const VIEWS = { sectors: "Sector overview", breakouts: "Breakouts", setups: "Setups", replay: "Replay" };
+const VIEWS = { sectors: "Sector overview", breakouts: "Breakouts", setups: "Setups", smart: "Smart Money", replay: "Replay" };
 function route() {
   const key = location.hash.slice(1);
   showView(VIEWS[key] ? key : "sectors");
@@ -1500,6 +1623,7 @@ simReset();
 renderBreakouts();
 simPlay();
 renderSetups();
+renderSmart();
 route();
 startLive();
 </script>
