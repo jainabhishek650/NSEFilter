@@ -96,6 +96,31 @@
     .nav-item { padding: 7px 10px; white-space: nowrap; }
     .nav-item[aria-current="page"]::before { left: 10px; right: 10px; top: auto; bottom: 0; width: auto; height: 2px; border-radius: 2px; }
     .nav-count { display: none; }
+    /* phones: content takes the screen width; wide tables scroll inside their own box */
+    .wrap { width: 100%; max-width: 100%; margin: 0; padding: 14px 10px 32px; }
+    .brand { display: none; }
+    .side { padding: 6px 8px; }
+    .nav { width: 100%; justify-content: space-between; gap: 2px; }
+    .nav-item { padding: 8px 8px; font-size: .88rem; gap: 6px; }
+    .nav-item svg { width: 16px; height: 16px; }
+    header.top { margin-bottom: 10px; }
+    .bo-head, .chart-head, .stocks-head { padding-left: 12px; padding-right: 12px; }
+    .bo-sub, .scope { padding-left: 12px; padding-right: 12px; }
+    .bo-controls { gap: 6px 10px; }
+    .timeline { padding-left: 10px; padding-right: 10px; }
+    .filters { padding-left: 12px; padding-right: 12px; }
+
+    /* Breakouts & Setups rows become cards */
+    table.cards-m { min-width: 0 !important; }
+    table.cards-m thead { display: none; }
+    table.cards-m tbody tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 10px; padding: 10px 12px; }
+    table.cards-m td { display: block; padding: 0; text-align: left !important; white-space: normal; }
+    table.cards-m td::before { content: attr(data-label); display: block; font-size: .7rem; color: var(--muted); margin-bottom: 1px; }
+    table.cards-m td.sym { grid-column: 1 / -1; order: -1; font-size: 1rem; }
+    table.cards-m td.sym::before, table.cards-m td.empty::before { content: none; }
+    table.cards-m td.empty { grid-column: 1 / -1; padding: 12px 0; }
+    table.cards-m td.big { font-size: 1rem; }
+    .tl-labels span:first-child { display: none; }
   }
 
   header.top {
@@ -288,9 +313,11 @@
     .bo-col + .bo-col { border-left: 0; border-top: 1px solid var(--line); }
   }
 
-  @media (max-width: 760px) {
+  @media (max-width: 1100px) {
     .sector-strip { grid-template-columns: 1fr 1fr; }
     .sector-strip .ident, .sector-strip .range { grid-column: 1 / -1; }
+  }
+  @media (max-width: 760px) {
     header.top h1 { font-size: 1.25rem; }
   }
 </style>
@@ -391,14 +418,14 @@
     <div class="bo-grid">
       <div class="bo-col">
         <h3><span class="up-t">Pullback breakouts</span><span class="n" id="boHighN"></span></h3>
-        <div class="table-scroll"><table>
+        <div class="table-scroll"><table class="cards-m">
           <thead><tr><th>Symbol</th><th>Breakouts today</th><th>Level broken</th><th>Last breakout</th><th>Status</th><th>LTP</th><th>% change</th></tr></thead>
           <tbody id="boHigh"></tbody>
         </table></div>
       </div>
       <div class="bo-col">
         <h3><span class="down-t">Pullback breakdowns</span><span class="n" id="boLowN"></span></h3>
-        <div class="table-scroll"><table>
+        <div class="table-scroll"><table class="cards-m">
           <thead><tr><th>Symbol</th><th>Breakdowns today</th><th>Level broken</th><th>Last breakdown</th><th>Status</th><th>LTP</th><th>% change</th></tr></thead>
           <tbody id="boLow"></tbody>
         </table></div>
@@ -420,7 +447,7 @@
     </div>
     <div class="bo-sub">Only stocks on the Breakouts list (a pullback breakout in the same direction within the last 30 minutes). 3+ candles in the trend direction, exactly 2 opposite candles, then a trigger candle back in the trend direction. Entry at the trigger close, SL beyond the trigger candle, target 1:3. Nifty 50 must be up (longs) or down (shorts) on the day, and the trigger must close above VWAP (longs) or below it (shorts). A+ = trigger candle touched the 9 or 15 EMA.</div>
     <p class="scope" id="stSummary"></p>
-    <div class="table-scroll"><table class="setups-table">
+    <div class="table-scroll"><table class="setups-table cards-m">
           <thead><tr><th>Time</th><th>Symbol</th><th>Side</th><th>Grade</th><th>Entry</th><th>SL</th><th>Target (1:3)</th><th>Nifty 50</th><th>VWAP</th><th>Result</th></tr></thead>
           <tbody id="stRows"></tbody>
         </table></div>
@@ -455,14 +482,14 @@
     <div class="bo-grid">
       <div class="bo-col">
         <h3><span class="up-t">Pullback breakouts</span><span class="n" id="rpHighN"></span></h3>
-        <div class="table-scroll"><table>
+        <div class="table-scroll"><table class="cards-m">
           <thead><tr><th>Symbol</th><th>Breakouts today</th><th>Level broken</th><th>Last breakout</th><th>Status</th><th>LTP</th><th>% change</th></tr></thead>
           <tbody id="rpHigh"></tbody>
         </table></div>
       </div>
       <div class="bo-col">
         <h3><span class="down-t">Pullback breakdowns</span><span class="n" id="rpLowN"></span></h3>
-        <div class="table-scroll"><table>
+        <div class="table-scroll"><table class="cards-m">
           <thead><tr><th>Symbol</th><th>Breakdowns today</th><th>Level broken</th><th>Last breakdown</th><th>Status</th><th>LTP</th><th>% change</th></tr></thead>
           <tbody id="rpLow"></tbody>
         </table></div>
@@ -476,7 +503,7 @@
         <label><input type="checkbox" class="f-vwap"> Include against VWAP</label>
         <label><input type="checkbox" class="f-bo"> Include stocks not in Breakouts</label>
       </div>
-      <div class="table-scroll"><table class="setups-table">
+      <div class="table-scroll"><table class="setups-table cards-m">
           <thead><tr><th>Time</th><th>Symbol</th><th>Side</th><th>Grade</th><th>Entry</th><th>SL</th><th>Target (1:3)</th><th>Nifty 50</th><th>VWAP</th><th>Result</th></tr></thead>
           <tbody id="rpSetups"></tbody>
         </table></div>
@@ -1020,12 +1047,12 @@ function rowHtml(sym, e, side, cur, q, secs, names) {
   const p = q && q.p;
   return `<tr class="${active || pb ? "" : "cooling"}">
     <td class="sym">${sym}<div class="sec">${secIdx ? secLabel(secIdx, names) : ""}</div></td>
-    <td class="big">${count}</td>
-    <td>${level > 0 ? fmt(level) : "–"}</td>
-    <td>${candleEnd(last)}</td>
-    <td><span class="status ${stCls}">${status}</span></td>
-    <td>${q && q.ltp != null ? fmt(q.ltp) : "–"}</td>
-    <td>${p != null ? `<span class="pill ${p >= 0 ? "up" : "down"}">${sign(p)}${p.toFixed(2)}%</span>` : "–"}</td>
+    <td class="big" data-label="${side === "high" ? "Breakouts" : "Breakdowns"}">${count}</td>
+    <td data-label="Level broken">${level > 0 ? fmt(level) : "–"}</td>
+    <td data-label="Last">${candleEnd(last)}</td>
+    <td data-label="Status"><span class="status ${stCls}">${status}</span></td>
+    <td data-label="LTP">${q && q.ltp != null ? fmt(q.ltp) : "–"}</td>
+    <td data-label="% change">${p != null ? `<span class="pill ${p >= 0 ? "up" : "down"}">${sign(p)}${p.toFixed(2)}%</span>` : "–"}</td>
   </tr>`;
 }
 // ids: { high, low, highN, lowN }
@@ -1111,16 +1138,16 @@ function setupRowHtml(g, upTo, secOf, names, stocks) {
   const vwCell = g.vw == null ? "–" : `${fmt(g.vw)} ${g.vok ? "✓" : "✗"}`;
   const boBadge = bo ? `<span class="bo-badge ${g.d}" title="On the Breakouts list at the trigger">${g.d === "L" ? "Breakout" : "Breakdown"}${boc > 1 ? " ×" + boc : ""}</span>` : "";
   return `<tr class="${g.nok && g.vok !== false && bo === true ? "" : "against"}">
-    <td>${candleEnd(g.i)}</td>
+    <td data-label="Time">${candleEnd(g.i)}</td>
     <td class="sym">${g.s} ${boBadge}<div class="sec">${secIdx ? secLabel(secIdx, names) : ""}</div></td>
-    <td><span class="dir-pill ${g.d}">${g.d === "L" ? "Long" : "Short"} <small>${g.n}+2</small></span></td>
-    <td>${g.a ? `<span class="aplus">A+</span><span class="ema-note">${g.a} EMA</span>` : "–"}</td>
-    <td>${fmt(g.e)}</td>
-    <td>${fmt(g.sl)}</td>
-    <td>${fmt(g.tg)}</td>
-    <td class="${np > 0 ? "up-t" : np < 0 ? "down-t" : ""}">${np == null ? "–" : sign(np) + np.toFixed(2) + "%"} ${g.nok ? "✓" : "✗"}</td>
-    <td class="${g.vok === false ? "down-t" : ""}">${vwCell}</td>
-    <td>${res}</td>
+    <td data-label="Side"><span class="dir-pill ${g.d}">${g.d === "L" ? "Long" : "Short"} <small>${g.n}+2</small></span></td>
+    <td data-label="Grade">${g.a ? `<span class="aplus">A+</span><span class="ema-note">${g.a} EMA</span>` : "–"}</td>
+    <td data-label="Entry">${fmt(g.e)}</td>
+    <td data-label="SL">${fmt(g.sl)}</td>
+    <td data-label="Target (1:3)">${fmt(g.tg)}</td>
+    <td data-label="Nifty 50" class="${np > 0 ? "up-t" : np < 0 ? "down-t" : ""}">${np == null ? "–" : sign(np) + np.toFixed(2) + "%"} ${g.nok ? "✓" : "✗"}</td>
+    <td data-label="VWAP" class="${g.vok === false ? "down-t" : ""}">${vwCell}</td>
+    <td data-label="Result">${res}</td>
   </tr>`;
 }
 function fillSetups(tbodyId, list, upTo, secOf, names, emptyMsg, stocks) {
