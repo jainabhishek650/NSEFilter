@@ -210,7 +210,7 @@
   .badge:empty { display: none; }
   .badge.mock { border-color: var(--down); color: var(--down); }
   .table-scroll { overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; min-width: 900px; }
+  table { width: 100%; border-collapse: collapse; min-width: 560px; }
   th, td { padding: 9px 14px; text-align: right; white-space: nowrap; }
   th:first-child, td:first-child { text-align: left; }
   thead th {
@@ -829,15 +829,11 @@ function renderStrip() {
    ========================================================= */
 const COLUMNS = [
   { key: "symbol", label: "Symbol", text: true },
-  { key: "lastPrice", label: "LTP" },
   { key: "change", label: "Change" },
   { key: "pChange", label: "% change" },
   { key: "vsSector", label: "vs sector" },
   { key: "VWAP", label: "VWAP" },
-  { key: "high", label: "High" },
-  { key: "low", label: "Low" },
-  { key: "totalTradedVolume", label: "Volume" },
-  { key: "quantityTraded", label: "Turnover (₹ Cr)" }
+  { key: "totalTradedVolume", label: "Volume" }
 ];
 function renderHead() {
   document.getElementById("thead").innerHTML = COLUMNS.map(c => {
@@ -885,15 +881,11 @@ function renderTable() {
     const above = num(r.lastPrice) >= num(r.VWAP);
     return `<tr>
       <td class="sym">${r.symbol}</td>
-      <td>${fmt(r.lastPrice)}</td>
       <td class="${ch >= 0 ? "up-t" : "down-t"}">${sign(ch)}${fmt(ch)}</td>
       <td><span class="pill ${p >= 0 ? "up" : "down"}">${sign(p)}${p.toFixed(2)}%</span></td>
       <td class="${vs >= 0 ? "up-t" : "down-t"}">${sign(vs)}${vs.toFixed(2)}</td>
       <td>${fmt(r.VWAP)}<span class="vw ${above ? "up-t" : "down-t"}" title="${above ? "Price above VWAP" : "Price below VWAP"}">${above ? "▲" : "▼"}</span></td>
-      <td>${fmt(r.high)}</td>
-      <td>${fmt(r.low)}</td>
       <td>${compact(r.totalTradedVolume)}</td>
-      <td>${crores(r.quantityTraded)}</td>
     </tr>`;
   }).join("");
 }
