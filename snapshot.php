@@ -617,6 +617,7 @@ try {
   $payload['sync'] = $sync;
   $out = json_encode($payload);
   file_put_contents($cacheFile, $out);
+  @file_put_contents(__DIR__ . '/last-snapshot.json', $out);   // last real data, for GitHub Pages / offline viewing
   echo $out;
 } catch (Exception $e) {
   if (is_file($cacheFile)) { readfile($cacheFile); }   // serve last good copy
