@@ -4,5 +4,5 @@
 // It is listed in .gitignore so it never goes to GitHub.
 return [
   'url'         => 'https://kqjmxrknvvymyyyswrwm.supabase.co',
-  'service_key' => 'sb_secret_JQPFyim9tii6c_98QaeFvA_kS2mxS2G',   // Supabase -> Project Settings -> API Keys -> secret key (or legacy service_role)
+  'service_key' => 'sb_secret_F-AYhHSnCEXQ4D4QWEnTJw_-V_kShTm',   // Supabase -> Project Settings -> API Keys -> secret key (or legacy service_role)
 ];
