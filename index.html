@@ -502,6 +502,7 @@
       <h2>Breakout replay</h2>
       <div class="bo-controls">
         <label>Day <select id="rpDay"></select></label>
+        <button type="button" id="rpReload" title="Reload this day (today's record keeps growing)">Reload</button>
         <button type="button" id="rpPlay">Play</button>
         <label>Speed
           <select id="rpSpeed">
@@ -762,7 +763,8 @@ document.getElementById("selNone").addEventListener("click", () => setAll(false)
    ========================================================= */
 function renderHeader() {
   document.getElementById("stamp").textContent = "As of " + SECTOR_DATA[0].timeStamp +
-    (LIVE.on ? " · Live, refreshes every minute" : EXT ? " · Data from nse-data.js" : " · Embedded sample data");
+    (LIVE.on ? (LIVE.source === "cloud" ? cloudStatus() : " · Live, refreshes every minute")
+             : EXT ? " · Data from nse-data.js" : " · Embedded sample data");
   const up = shown().filter(s => s.pChange > 0).length;
   const down = shown().filter(s => s.pChange < 0).length;
   document.getElementById("breadth").innerHTML =
@@ -1314,22 +1316,43 @@ const R = { loaded: false, day: null, data: null, t: 0, timer: null, speed: 500,
 function rpMsg(msg) {
   document.getElementById("rpSub").textContent = msg;
 }
+// Saved days: from snapshot.php when this page runs on the recorder PC, otherwise from the cloud
+async function listDays() {
+  try {
+    const res = await fetch(LIVE.URL + "?days", { cache: "no-store" });
+    if (res.ok) { const j = await res.json(); if (Array.isArray(j)) { R.src = "local"; return j; } }
+  } catch (e) { /* not on XAMPP */ }
+  if (!cloudOn()) throw new Error("no data source");
+  const rows = await cloudGet("select=key&key=like.day:*");
+  R.src = "cloud";
+  return rows.map(r => r.key.slice(4)).sort((a, b) => dayTs(b) - dayTs(a));
+}
+async function fetchDay(day) {
+  if (R.src === "cloud") {
+    const rows = await cloudGet("key=eq." + encodeURIComponent("day:" + day) + "&select=data");
+    if (!rows.length) throw new Error("not found");
+    return rows[0].data;
+  }
+  const res = await fetch(LIVE.URL + "?day=" + encodeURIComponent(day), { cache: "no-store" });
+  if (!res.ok) throw new Error("not found");
+  return res.json();
+}
+
 async function initReplay() {
   if (R.loaded) return;
   R.loaded = true;
   buildTimelineLabels();
   rpMsg("Loading saved days…");
   try {
-    const res = await fetch(LIVE.URL + "?days", { cache: "no-store" });
-    if (!res.ok) throw new Error();
-    const days = await res.json();
+    const days = await listDays();
     const sel = document.getElementById("rpDay");
     sel.innerHTML = days.map(d => `<option value="${d}">${d}</option>`).join("");
     if (!days.length) { rpMsg("No saved days yet. Days are recorded automatically while snapshot.php runs during market hours."); renderReplay(); return; }
     await loadDay(days[0]);
   } catch (e) {
     R.loaded = false;
-    rpMsg("Replay needs the live backend: open this page through XAMPP (snapshot.php in the same folder).");
+    rpMsg(cloudOn() ? "Could not load saved days from the cloud: " + e.message
+                    : "Replay needs data: open this page through XAMPP, or fill in the CLOUD settings in this file.");
     renderReplay();
   }
 }
@@ -1337,9 +1360,7 @@ async function loadDay(day) {
   rpPause();
   rpMsg("Loading " + day + "…");
   try {
-    const res = await fetch(LIVE.URL + "?day=" + encodeURIComponent(day), { cache: "no-store" });
-    if (!res.ok) throw new Error();
-    const d = await res.json();
+    const d = await fetchDay(day);
     R.day = day; R.data = d; R.pxIdx = {};
     Object.entries(d.stocks || {}).forEach(([sym, st]) => {
       R.pxIdx[sym] = Object.keys(st.k || st.px || {}).map(Number).sort((a, b) => a - b);
@@ -1348,7 +1369,7 @@ async function loadDay(day) {
     document.getElementById("rpSlider").value = R.t;
   } catch (e) {
     R.data = null;
-    rpMsg("Could not load " + day + ".");
+    rpMsg("Could not load " + day + (R.src === "cloud" ? " from the cloud." : "."));
   }
   renderReplay();
 }
@@ -1473,6 +1494,10 @@ function rpPause() {
 document.getElementById("rpSlider").addEventListener("input", e => rpSet(+e.target.value));
 document.getElementById("rpPlay").addEventListener("click", () => R.timer ? rpPause() : rpPlay());
 document.getElementById("rpDay").addEventListener("change", e => loadDay(e.target.value));
+document.getElementById("rpReload").addEventListener("click", () => {
+  const keep = R.t;
+  if (R.day) loadDay(R.day).then(() => { if (R.data) rpSet(keep); });
+});
 document.getElementById("rpSpeed").addEventListener("change", e => { R.speed = +e.target.value; if (R.timer) rpPlay(); });
 
 document.getElementById("boPlay").addEventListener("click", () => sim.timer ? simPause() : simPlay());
@@ -1495,7 +1520,24 @@ function selectSector(idx) {
    (http://localhost:3000). Falls back to embedded data + replay otherwise.
    ========================================================= */
 const LIVE = { on: false, polls: 0, time: "", INTERVAL: 60000, timer: null, error: "", known: new Set(),
-  URL: "snapshot.php" };  // works with XAMPP (PHP) and with server.js
+  URL: "snapshot.php", source: null, cloudAt: null };  // source: "local" (XAMPP) or "cloud" (Supabase)
+
+/* ---------- Cloud (Supabase), read-only ----------
+   Fill in your project URL and the PUBLISHABLE / anon key (safe to publish: the table only allows reading).
+   Never put the secret / service_role key here. Leave empty to disable the cloud. */
+const CLOUD = {
+  url: "",   // e.g. "https://abcdefghijkl.supabase.co"
+  key: ""    // e.g. "sb_publishable_..." (or the legacy "anon" key starting with eyJ...)
+};
+const cloudOn = () => !!(CLOUD.url && CLOUD.key);
+async function cloudGet(query) {
+  const headers = { apikey: CLOUD.key };
+  if (CLOUD.key.startsWith("eyJ")) headers.Authorization = "Bearer " + CLOUD.key;   // legacy JWT keys
+  const res = await fetch(CLOUD.url.replace(/\/$/, "") + "/rest/v1/nse_data?" + query, { headers, cache: "no-store" });
+  if (!res.ok) throw new Error("cloud HTTP " + res.status);
+  return res.json();
+}
+const dayTs = d => { const [dd, mon, yy] = String(d).split("-"); return new Date(`${mon} ${dd}, ${yy}`).getTime() || 0; };
 const NUM_FIELDS = ["close","current","high","low","open","pChange","yrHigh","yrLow"];
 
 function applyLiveData(d) {
@@ -1544,23 +1586,56 @@ function applyLiveData(d) {
   if (selected) selectSector(selected); else { renderStrip(); renderTable(); }
 }
 
+function cloudStatus() {
+  const at = LIVE.cloudAt ? new Date(LIVE.cloudAt) : null;
+  const mins = at ? (Date.now() - at.getTime()) / 60000 : null;
+  const t = at ? at.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "–";
+  return ` · Live via cloud, recorder last sent ${t}` + (mins != null && mins > 3 ? " (not sending now: market closed or recorder PC off)" : "");
+}
+
 // returns "ok" | "warming" | "error" | "none"
 async function pollLive() {
+  if (LIVE.source !== "cloud") {
+    const r = await pollLocal();
+    if (r !== "none") { LIVE.source = "local"; return r; }
+    if (LIVE.source === "local") return "error";       // XAMPP was working and stopped
+    if (!cloudOn()) return "none";
+    LIVE.source = "cloud";
+  }
+  return pollCloud();
+}
+async function pollLocal() {
   try {
     const res = await fetch(LIVE.URL, { cache: "no-store" });
     if (res.status === 503) return "warming";
     if (res.status === 404) return "none";            // no live backend here
     if (!res.ok) {
       try { LIVE.error = (await res.json()).error || ("HTTP " + res.status); } catch (e) { LIVE.error = "HTTP " + res.status; }
-      return "error";
+      return LIVE.source === "local" ? "error" : "none";
     }
     let d;
-    try { d = await res.json(); } catch (e) { LIVE.error = "snapshot.php did not return JSON (is PHP running?)"; return "error"; }
+    try { d = await res.json(); }
+    catch (e) {                                        // e.g. GitHub Pages serving the PHP file as text
+      LIVE.error = "snapshot.php did not return JSON (is PHP running?)";
+      return LIVE.source === "local" ? "error" : "none";
+    }
     if (!d.sectors || !d.sectors.length) return "warming";
     applyLiveData(d);
     return "ok";
   } catch (e) {
     return "none";
+  }
+}
+async function pollCloud() {
+  try {
+    const rows = await cloudGet("key=eq.live&select=data,updated_at");
+    if (!rows.length || !rows[0].data || !rows[0].data.sectors) { LIVE.error = "no live data in the cloud yet (is the recorder PC running?)"; return "error"; }
+    LIVE.cloudAt = rows[0].updated_at;
+    applyLiveData(rows[0].data);
+    return "ok";
+  } catch (e) {
+    LIVE.error = e.message;
+    return "error";
   }
 }
 
