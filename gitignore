@@ -1,0 +1,5 @@
+# Secret key for Supabase uploads: never publish
+supabase.config.php
+
+# Local recordings, cookies and cache (synced to Supabase instead)
+cache/
