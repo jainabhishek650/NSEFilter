@@ -409,9 +409,9 @@
     <div class="bo-head">
       <h2>New day highs and lows</h2>
       <div class="bo-controls">
-        <span class="badge mock" id="boBadge">Simulated replay</span>
+        <span class="badge" id="boBadge">No data yet</span>
         <span class="clock" id="boClock"></span>
-        <span class="bo-controls" id="simCtrls">
+        <span class="bo-controls" id="simCtrls" hidden>
         <button type="button" id="boPlay">Pause</button>
         <button type="button" id="boStep">Step 1 min</button>
         <button type="button" id="boReset">Restart day</button>
@@ -686,8 +686,7 @@ function mockStocks(sector) {
   });
 }
 function getStocks(sector) {
-  if (STOCK_DATA[sector.index]) return { rows: STOCK_DATA[sector.index], mock: false };
-  return { rows: mockStocks(sector), mock: true };
+  return { rows: STOCK_DATA[sector.index] || [], mock: false };   // real data only, no mock stocks
 }
 
 /* =========================================================
@@ -762,9 +761,13 @@ document.getElementById("selNone").addEventListener("click", () => setAll(false)
    HEADER
    ========================================================= */
 function renderHeader() {
-  document.getElementById("stamp").textContent = "As of " + SECTOR_DATA[0].timeStamp +
-    (LIVE.on ? (LIVE.source === "cloud" ? cloudStatus() : " · Live, refreshes every minute")
-             : EXT ? " · Data from nse-data.js" : " · Embedded sample data");
+  const ts = (SECTOR_DATA.find(x => x.timeStamp) || {}).timeStamp
+    || (LIVE.fetchedAt ? new Date(LIVE.fetchedAt).toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "–");
+  document.getElementById("stamp").textContent = "As of " + ts +
+    (LIVE.on ? (LIVE.source === "cloud" ? cloudStatus()
+              : LIVE.source === "file" ? " · Last data saved from NSE (not live)"
+              : " · Live, refreshes every minute")
+             : " · Built-in sample from 28-Oct-2026 (no data source found)");
   const up = shown().filter(s => s.pChange > 0).length;
   const down = shown().filter(s => s.pChange < 0).length;
   document.getElementById("breadth").innerHTML =
@@ -906,7 +909,7 @@ function renderTable() {
   const { rows, mock } = getStocks(s);
   document.getElementById("stocksTitle").textContent = `${s.indexLongName} stocks (${rows.length})`;
   const badge = document.getElementById("dataBadge");
-  badge.textContent = mock ? "Mock data" : "Real NSE data · " + (rows[0].lastUpdatedTime || "");
+  badge.textContent = rows.length ? "NSE data · " + (rows[0].lastUpdatedTime || "") : "";
   badge.className = "badge" + (mock ? " mock" : "");
 
   const data = rows.map(r => ({ ...r, vsSector: num(r.pChange) - s.pChange }));
@@ -918,7 +921,7 @@ function renderTable() {
   renderHead();
   const tbody = document.getElementById("tbody");
   if (!data.length) {
-    tbody.innerHTML = `<tr><td class="empty" colspan="${COLUMNS.length}">No stocks loaded for this sector yet. Add them to STOCK_DATA.</td></tr>`;
+    tbody.innerHTML = `<tr><td class="empty" colspan="${COLUMNS.length}">No stock data for this sector in the current data.</td></tr>`;
     return;
   }
   tbody.innerHTML = data.map(r => {
@@ -1117,7 +1120,7 @@ function fillLists(ids, lists, cur, quoteOf, secOf, names) {
 
 const liveSecOf = sym => universe[sym] && universe[sym].sectors;
 function renderBreakouts() {
-  document.getElementById("boClock").textContent = LIVE.on ? "Updated " + LIVE.time : hhmm(OPEN_MIN + sim.tick);
+  document.getElementById("boClock").textContent = LIVE.on ? "Updated " + LIVE.time : "";
   const cur = BO.curIdx;
   document.getElementById("boSub").textContent = cur == null
     ? "Waiting for market data. Counting starts once 5-minute candles arrive during market hours (09:15–15:30)."
@@ -1544,9 +1547,10 @@ function applyLiveData(d) {
     LIVE.on = true;
     simPause();
     document.getElementById("simCtrls").hidden = true;
-    const b = document.getElementById("boBadge");
-    b.textContent = "Live"; b.className = "badge";
   }
+  const b = document.getElementById("boBadge");
+  b.textContent = LIVE.source === "file" ? "Last saved" : LIVE.source === "cloud" ? "Live · cloud" : "Live";
+  LIVE.fetchedAt = d.fetchedAt || null;
   d.sectors = d.sectors.filter(keepSector);
   d.sectors.forEach(sec => NUM_FIELDS.forEach(k => { sec[k] = parseFloat(sec[k]) || 0; }));
   const firstLoad = LIVE.polls === 0;
@@ -1638,9 +1642,28 @@ async function pollCloud() {
   }
 }
 
+// Last data saved by snapshot.php next to this page (works on GitHub Pages once the file is pushed)
+async function loadStatic() {
+  try {
+    const res = await fetch("last-snapshot.json", { cache: "no-store" });
+    if (!res.ok) return false;
+    const d = await res.json();
+    if (!d.sectors || !d.sectors.length) return false;
+    LIVE.source = "file";
+    applyLiveData(d);
+    return true;
+  } catch (e) { return false; }
+}
+
 async function startLive() {
   const r = await pollLive();
-  if (r === "none") return;                         // no backend: stay on embedded data + replay
+  if (r === "none" || (r === "error" && LIVE.source === "cloud" && !LIVE.on)) {
+    if (await loadStatic()) return;                 // show the last saved NSE data
+    if (r === "none") {
+      document.getElementById("stamp").textContent += ". Open via XAMPP, set up the cloud, or put last-snapshot.json next to this page.";
+      return;
+    }
+  }
   if (r === "error") {
     document.getElementById("stamp").textContent = "Live data error: " + LIVE.error + " (retrying in 1 min)";
     setTimeout(startLive, LIVE.INTERVAL);
@@ -1693,9 +1716,7 @@ renderFilters();
 renderHeader();
 renderChart();
 selectSector(selected);
-simReset();
 renderBreakouts();
-simPlay();
 renderSetups();
 renderSmart();
 route();
