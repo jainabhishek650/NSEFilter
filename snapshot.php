@@ -3,6 +3,7 @@
 // Put it in the same folder as nse-sector-screener.html, e.g. C:\xampp\htdocs\nse-screener\
 // Then open http://localhost/nse-screener/nse-sector-screener.html
 
+date_default_timezone_set('Asia/Kolkata');
 header('Content-Type: application/json');
 header('Cache-Control: no-store');
 
@@ -38,6 +39,42 @@ $dir = __DIR__ . '/cache';
 if (!is_dir($dir) && !mkdir($dir, 0777, true)) fail(500, 'Cannot create cache folder next to snapshot.php');
 $cacheFile  = "$dir/snapshot.json";
 $cookieFile = "$dir/cookies.txt";
+
+// ---------- Cloud sync (Supabase) ----------
+// supabase.config.php (same folder, NEVER commit it) returns:
+//   ['url' => 'https://xxxx.supabase.co', 'service_key' => '<secret / service_role key>']
+$SB = is_file(__DIR__ . '/supabase.config.php') ? include __DIR__ . '/supabase.config.php' : null;
+if (!is_array($SB) || empty($SB['url']) || empty($SB['service_key'])) $SB = null;
+const SYNC_DAY_EVERY = 300;      // push the day record at most every 5 minutes (plus once after 15:30)
+
+// Upsert one row into public.nse_data. $json must already be JSON text.
+function sb_upsert($SB, $key, $json) {
+  $body = '[{"key":' . json_encode($key) . ',"data":' . $json . ',"updated_at":' . json_encode(gmdate('c')) . '}]';
+  $headers = ['apikey: ' . $SB['service_key'], 'Content-Type: application/json', 'Prefer: resolution=merge-duplicates,return=minimal'];
+  if (strpos($SB['service_key'], 'eyJ') === 0) $headers[] = 'Authorization: Bearer ' . $SB['service_key'];   // legacy JWT keys
+  $ch = curl_init(rtrim($SB['url'], '/') . '/rest/v1/nse_data?on_conflict=key');
+  curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $body, CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_TIMEOUT => 25, CURLOPT_ENCODING => '', CURLOPT_HTTPHEADER => $headers]);
+  if (!ini_get('curl.cainfo')) {
+    foreach (['C:/xampp/apache/bin/curl-ca-bundle.crt', 'C:/xampp/php/extras/ssl/cacert.pem'] as $ca) {
+      if (is_file($ca)) { curl_setopt($ch, CURLOPT_CAINFO, $ca); break; }
+    }
+  }
+  $res = curl_exec($ch); $code = curl_getinfo($ch, CURLINFO_HTTP_CODE); $err = curl_error($ch); curl_close($ch);
+  if ($res === false || $code >= 300) throw new Exception("Supabase HTTP $code " . ($err ?: substr((string)$res, 0, 200)));
+}
+
+// snapshot.php?sync=all -> upload every saved day file (use once to backfill older days)
+if (isset($_GET['sync']) && $_GET['sync'] === 'all') {
+  header('Content-Type: text/plain; charset=utf-8');
+  if (!$SB) { echo "supabase.config.php is missing or incomplete.\n"; exit; }
+  foreach (glob("$dir/breaks-*.json") ?: [] as $f) {
+    $d = substr(basename($f), 7, -5);
+    try { sb_upsert($SB, "day:$d", file_get_contents($f)); echo "uploaded $d\n"; }
+    catch (Exception $e) { echo "FAILED $d: " . $e->getMessage() . "\n"; }
+  }
+  exit;
+}
 
 // ---------- Replay endpoints ----------
 // snapshot.php?days            -> ["29-Oct-2026", "28-Oct-2026", ...] (newest first)
@@ -431,7 +468,7 @@ function update_breaks($dir, $stocks, $sectors, $extraRows = [], $oiRows = []) {
     $smart[$sym] = [$p, $last[1], $last[2], $oi30, (float)($r['lastPrice'] ?? 0), !empty($r['VWAP']) ? (float)$r['VWAP'] : null,
                     $bull, $bear, build_up($p, $last[1])];
   }
-  return ['candle' => $cur, 'since' => $state['since'], 'breaks' => (object)$sum, 'signals' => $state['signals'], 'sec' => $state['sec'] ?? [],
+  return ['day' => $day, 'candle' => $cur, 'since' => $state['since'], 'breaks' => (object)$sum, 'signals' => $state['signals'], 'sec' => $state['sec'] ?? [],
           'smart' => (object)$smart];
 }
 
@@ -544,12 +581,34 @@ try {
   catch (Exception $e) { $errors[] = 'F&O price list: ' . $e->getMessage(); }
 
   $bo = update_breaks($dir, $stocks, $sectors, $foRows, $oiRows);
-  $out = json_encode([
+  $payload = [
     'fetchedAt' => gmdate('c'), 'sectors' => $sectors, 'stocks' => (object)$stocks, 'errors' => $errors,
     'candle' => $bo['candle'] ?? null, 'since' => $bo['since'] ?? null, 'breaks' => $bo['breaks'] ?? (object)[],
-    'signals' => $bo['signals'] ?? [],
+    'signals' => $bo['signals'] ?? [], 'sec' => (object)($bo['sec'] ?? []),
     'smart' => $bo['smart'] ?? (object)[], 'oiTime' => $oiTime,
-  ]);
+  ];
+
+  // Cloud sync: live snapshot every fresh fetch, day record every 5 min and once after the close
+  $sync = $SB ? 'ok' : 'off';
+  if ($SB) {
+    try { sb_upsert($SB, 'live', json_encode($payload)); }
+    catch (Exception $e) { $sync = 'live: ' . $e->getMessage(); }
+    $day = $bo['day'] ?? null;
+    $dayFile = $day ? "$dir/breaks-$day.json" : null;
+    if ($dayFile && is_file($dayFile)) {
+      $mark = "$dir/sync-$day.json";
+      $m = is_file($mark) ? json_decode(file_get_contents($mark), true) : ['t' => 0, 'final' => false];
+      $after = (int)date('Hi') >= 1531;                    // after the close (PC clock, IST)
+      if (time() - ($m['t'] ?? 0) >= SYNC_DAY_EVERY || ($after && empty($m['final']))) {
+        try {
+          sb_upsert($SB, "day:$day", file_get_contents($dayFile));
+          file_put_contents($mark, json_encode(['t' => time(), 'final' => $after]));
+        } catch (Exception $e) { $sync = ($sync === 'ok' ? '' : "$sync; ") . 'day: ' . $e->getMessage(); }
+      }
+    }
+  }
+  $payload['sync'] = $sync;
+  $out = json_encode($payload);
   file_put_contents($cacheFile, $out);
   echo $out;
 } catch (Exception $e) {
