@@ -278,7 +278,7 @@ function finalize_candle(&$state, $sym, &$st, $ci) {
   if ($K[2] <= $st['e15'] && $st['e15'] <= $K[1]) $touch[] = '15';
 
   // on the Breakouts list at the trigger? (pullback breakout for longs / breakdown for shorts, recent)
-  $barr = $dir === 1 ? ($st['bh'] ?? []) : ($st['bl'] ?? []);
+  $barr = $dir === 1 ? ($st['nh'] ?? []) : ($st['nl'] ?? []);
   $recent = array_values(array_filter($barr, fn($b) => $b > $ci - SETUP_BREAKOUT_WINDOW && $b <= $ci));
   $boCount = count(array_filter($barr, fn($b) => $b <= $ci));
 
@@ -427,6 +427,15 @@ function update_breaks($dir, $stocks, $sectors, $extraRows = [], $oiRows = []) {
         $st['vs'] = $st['vol'];
         $st['k'][(string)$idx] = [$ltp, $ltp, $ltp, $ltp, 0, $pc, $vwap];
       }
+      // new day high / low in this candle? (each candle counts once; nhv/nlv keep the latest high/low)
+      if ($H > ($st['hb4'] ?? $st['dh']) * (1 + BREAK_BUFFER)) {
+        if (!empty($st['nh']) && end($st['nh']) === $idx) $st['nhv'][count($st['nhv']) - 1] = $H;
+        else { $st['nh'][] = $idx; $st['nhv'][] = $H; }
+      }
+      if ($L < ($st['lb4'] ?? $st['dl']) * (1 - BREAK_BUFFER)) {
+        if (!empty($st['nl']) && end($st['nl']) === $idx) $st['nlv'][count($st['nlv']) - 1] = $L;
+        else { $st['nl'][] = $idx; $st['nlv'][] = $L; }
+      }
       // candle OHLCV from 1-minute snapshots (day high/low catch spikes between polls)
       $k = $st['k'][(string)$idx];
       $k[1] = max($k[1], $ltp); $k[2] = min($k[2], $ltp);
@@ -442,16 +451,14 @@ function update_breaks($dir, $stocks, $sectors, $extraRows = [], $oiRows = []) {
   }
   file_put_contents($file, json_encode($state));
 
-  // summary per stock: [breakouts, lastBreakoutIdx, lastLevel, breakdowns, lastBreakdownIdx, lastLevel,
-  //                      pullingBackNow (highs), pullingBackNow (lows)]
+  // summary per stock: [newHighs, lastNewHighIdx, dayHigh, newLows, lastNewLowIdx, dayLow, -, -]
   $cur = $state['cur']; $sum = [];
   foreach ($state['stocks'] as $sym => $st) {
-    if (!isset($st['swh'])) continue;             // not yet on the pullback rule (first candle still forming)
-    if (empty($st['bh']) && empty($st['bl'])) continue;
-    $bh = $st['bh'] ?? []; $bl = $st['bl'] ?? [];
-    $bhl = $st['bhl'] ?? []; $bll = $st['bll'] ?? [];
-    $sum[$sym] = [count($bh), $bh ? end($bh) : -1, $bhl ? end($bhl) : null,
-                  count($bl), $bl ? end($bl) : -1, $bll ? end($bll) : null,
+    if (!isset($member[$sym]) && !isset($state['sec'][$sym])) continue;   // Breakouts covers tracked sectors only
+    $nh = $st['nh'] ?? []; $nl = $st['nl'] ?? [];
+    if (!$nh && !$nl) continue;
+    $sum[$sym] = [count($nh), $nh ? end($nh) : -1, $st['dh'] ?? null,
+                  count($nl), $nl ? end($nl) : -1, $st['dl'] ?? null,
                   empty($st['pbh']) ? 0 : 1, empty($st['pbl']) ? 0 : 1];
   }
   // smart money summary: [price%, OI%, OI change, OI% change over last 30 min, ltp, vwap, bullOB, bearOB, build-up]
